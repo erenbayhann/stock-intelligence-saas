@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  a { color: #12E28A; text-decoration: none; }
+  a:hover { color: #5CF0B3; }
+
+  .board {
+    width: 1200px;
+    background: #070707;
+    color: #F4F5F6;
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    padding: 40px 44px 56px;
+  }
+
+  .wordmark { font-family: "Archivo Black", sans-serif; font-size: 22px; letter-spacing: -0.01em; }
+  .mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  .eyebrow { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #9195A0; }
+
+  .panel { background: #111214; border: 1px solid #24262A; border-radius: 16px; }
+
+  .rank-head {
+    font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px;
+    letter-spacing: 0.07em; text-transform: uppercase; color: #6C707B;
+    padding: 14px 22px; border-bottom: 1px solid #24262A;
+  }
+  .rank-row { padding: 16px 22px; border-bottom: 1px solid #1B1C1F; }
+  .rank-row:last-child { border-bottom: none; }
+
+  .rank-num { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: #55585F; width: 28px; }
+  .ticker { font-family: "Archivo Black", sans-serif; font-size: 16px; color: #F4F5F6; }
+  .company { font-size: 12.5px; color: #9195A0; margin-top: 2px; }
+  .score { font-family: "Archivo Black", sans-serif; font-size: 22px; color: #12E28A; }
+  .score-max { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: #55585F; }
+
+  .pill { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px; letter-spacing: 0.02em; padding: 4px 10px; border-radius: 20px; }
+  .pill-high { color: #06120C; background: #12E28A; }
+  .pill-medium { color: #EAF0FF; background: #2F5BFF; }
+
+  .dir-up { color: #12E28A; display: flex; align-items: center; gap: 4px; font-family: "IBM Plex Mono", monospace; font-weight: 500; font-size: 13px; }
+
+  .hero-grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+
+  .hero-score-card {
+    background: linear-gradient(155deg, #17F095 0%, #0BAE6C 100%);
+    border-radius: 16px; padding: 28px 26px; color: #06120C;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .hero-score-num { font-family: "Archivo Black", sans-serif; font-size: 88px; line-height: 0.85; }
+  .hero-score-lbl { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 10px; opacity: 0.75; }
+  .hero-ticker { font-family: "Archivo Black", sans-serif; font-size: 20px; }
+  .hero-company { font-family: "Archivo", sans-serif; font-size: 12.5px; opacity: 0.75; margin-top: 2px; }
+
+  .factors-card { padding: 26px 28px; }
+  .factor-tag {
+    font-family: "Archivo", sans-serif; font-weight: 600; font-size: 12.5px; color: #F4F5F6;
+    background: #191B1F; border: 1px solid #2A2D33; border-radius: 20px; padding: 7px 13px;
+  }
+  .news-item { font-size: 13.5px; color: #D7D9DE; padding: 10px 0; border-top: 1px solid #1B1C1F; }
+  .news-src { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #6C707B; margin-top: 3px; }
+
+  .disclaimer {
+    font-size: 12px; color: #9195A0; padding: 13px 20px;
+    border: 1px solid #24262A; border-radius: 12px; background: #0C0D0E;
+  }
+
+  .stat-tile { border-radius: 16px; padding: 20px 22px; }
+  .stat-tile.green { background: linear-gradient(155deg, #17F095 0%, #0BAE6C 100%); color: #06120C; }
+  .stat-tile.blue { background: #2F5BFF; color: #EAF0FF; }
+  .stat-tile.white { background: #FFFFFF; color: #101114; }
+  .stat-val { font-family: "Archivo Black", sans-serif; font-size: 34px; line-height: 1; }
+  .stat-lbl { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 8px; opacity: 0.72; }
+
+  .week-row { font-size: 12.5px; padding: 12px 22px; border-bottom: 1px solid #1B1C1F; color: #D7D9DE; }
+  .week-row:last-child { border-bottom: none; }
+  .ok { color: #12E28A; }
+  .bad { color: #FF6B5E; }
+</style>
+</helmet>
+
+<div class="board">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:26px">
+    <div class="wordmark">AI EQUITY RANKINGS</div>
+    <div class="mono" style="font-size:11px;color:#6C707B">2026-08-25 09:12 ET &middot; Model v1.4.2</div>
+  </div>
+  <div class="eyebrow" style="margin-bottom:16px">US Equities &middot; S&amp;P 100</div>
+
+  <div class="panel" style="margin-bottom:16px">
+    <div class="rank-head" style="display:grid;grid-template-columns:40px 1fr 90px 110px 90px">
+      <div>#</div><div>Symbol</div><div>AI Score</div><div>Confidence</div><div>Direction</div>
+    </div>
+    <div class="rank-row" style="display:grid;grid-template-columns:40px 1fr 90px 110px 90px;align-items:center">
+      <div class="rank-num">01</div>
+      <div><div class="ticker">NVDA</div><div class="company">NVIDIA Corp</div></div>
+      <div class="score">91<span class="score-max">/100</span></div>
+      <div><span class="pill pill-high">High</span></div>
+      <div class="dir-up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 18L18 6M18 6H9M18 6V15"/></svg>Bullish</div>
+    </div>
+    <div class="rank-row" style="display:grid;grid-template-columns:40px 1fr 90px 110px 90px;align-items:center">
+      <div class="rank-num">02</div>
+      <div><div class="ticker">AMD</div><div class="company">Advanced Micro Devices</div></div>
+      <div class="score">87<span class="score-max">/100</span></div>
+      <div><span class="pill pill-high">High</span></div>
+      <div class="dir-up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 18L18 6M18 6H9M18 6V15"/></svg>Bullish</div>
+    </div>
+    <div class="rank-row" style="display:grid;grid-template-columns:40px 1fr 90px 110px 90px;align-items:center">
+      <div class="rank-num">03</div>
+      <div><div class="ticker">META</div><div class="company">Meta Platforms</div></div>
+      <div class="score">82<span class="score-max">/100</span></div>
+      <div><span class="pill pill-medium">Medium</span></div>
+      <div class="dir-up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 18L18 6M18 6H9M18 6V15"/></svg>Bullish</div>
+    </div>
+    <div class="rank-row" style="display:grid;grid-template-columns:40px 1fr 90px 110px 90px;align-items:center">
+      <div class="rank-num">04</div>
+      <div><div class="ticker">AVGO</div><div class="company">Broadcom Inc</div></div>
+      <div class="score">78<span class="score-max">/100</span></div>
+      <div><span class="pill pill-medium">Medium</span></div>
+      <div class="dir-up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 18L18 6M18 6H9M18 6V15"/></svg>Bullish</div>
+    </div>
+    <div class="rank-row" style="display:grid;grid-template-columns:40px 1fr 90px 110px 90px;align-items:center">
+      <div class="rank-num">05</div>
+      <div><div class="ticker">MU</div><div class="company">Micron Technology</div></div>
+      <div class="score">74<span class="score-max">/100</span></div>
+      <div><span class="pill pill-medium">Medium</span></div>
+      <div class="dir-up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 18L18 6M18 6H9M18 6V15"/></svg>Bullish</div>
+    </div>
+  </div>
+
+  <div class="hero-grid" style="margin-bottom:16px">
+    <div class="hero-score-card">
+      <div>
+        <div class="hero-ticker">NVDA</div>
+        <div class="hero-company">NVIDIA Corp</div>
+      </div>
+      <div>
+        <div class="hero-score-num">91</div>
+        <div class="hero-score-lbl">AI Score &middot; Confidence High</div>
+      </div>
+    </div>
+
+    <div class="panel factors-card">
+      <div class="eyebrow" style="margin-bottom:14px">Prediction horizon: next regular trading session</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <span class="factor-tag">Positive earnings surprise</span>
+        <span class="factor-tag">Strong after-hours momentum</span>
+        <span class="factor-tag">Positive company news</span>
+        <span class="factor-tag">Increased trading volume</span>
+        <span class="factor-tag">Strong sector momentum</span>
+        <span class="factor-tag">Healthy fundamentals</span>
+      </div>
+      <div style="margin-top:14px">
+        <div class="news-item">NVIDIA beats Q3 estimates, raises data-center revenue guidance
+          <div class="news-src">Reuters &middot; 2h ago</div>
+        </div>
+        <div class="news-item">Semiconductor sector rallies on AI capex outlook
+          <div class="news-src">Bloomberg &middot; 4h ago</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer" style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9195A0" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    Model-generated research signal, not investment advice. Not a guarantee of future returns. See Methodology.
+  </div>
+
+  <div class="eyebrow" style="margin-bottom:12px">Last 7 Days</div>
+  <div class="panel" style="margin-bottom:16px">
+    <div class="rank-head" style="display:grid;grid-template-columns:90px 90px 90px 90px 1fr 110px">
+      <div>Date</div><div>Pick</div><div>AI Score</div><div>Actual</div><div>Result</div><div>vs S&amp;P 500</div>
+    </div>
+    <div class="week-row mono" style="display:grid;grid-template-columns:90px 90px 90px 90px 1fr 110px">
+      <div>Aug 24</div><div>NVDA</div><div>91/100</div><div>+1.8%</div><div class="ok">&#10003; Correct direction</div><div class="ok">+1.2%</div>
+    </div>
+    <div class="week-row mono" style="display:grid;grid-template-columns:90px 90px 90px 90px 1fr 110px">
+      <div>Aug 21</div><div>AMD</div><div>84/100</div><div>&minus;0.4%</div><div class="bad">&#10007; Incorrect</div><div class="bad">&minus;0.9%</div>
+    </div>
+    <div class="week-row mono" style="display:grid;grid-template-columns:90px 90px 90px 90px 1fr 110px">
+      <div>Aug 20</div><div>META</div><div>79/100</div><div>+2.0%</div><div class="ok">&#10003; Correct direction</div><div class="ok">+1.5%</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+    <div class="stat-tile green"><div class="stat-val">71%</div><div class="stat-lbl">7-day hit rate</div></div>
+    <div class="stat-tile blue"><div class="stat-val">+0.6%</div><div class="stat-lbl">avg excess return</div></div>
+    <div class="stat-tile white"><div class="stat-val">68%</div><div class="stat-lbl">directional accuracy</div></div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

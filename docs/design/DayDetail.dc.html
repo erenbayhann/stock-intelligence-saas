@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  a { color: #12E28A; text-decoration: none; }
+  a:hover { color: #5CF0B3; }
+
+  .board {
+    width: 1200px;
+    background: #070707;
+    color: #F4F5F6;
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    padding: 40px 44px 56px;
+  }
+
+  .back-link { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: #6C707B; display: flex; align-items: center; gap: 6px; margin-bottom: 18px; }
+
+  .wordmark { font-family: "Archivo Black", sans-serif; font-size: 30px; letter-spacing: -0.01em; }
+  .mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  .eyebrow { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #9195A0; }
+
+  .panel { background: #111214; border: 1px solid #24262A; border-radius: 16px; }
+
+  .context-row { display: grid; grid-template-columns: 1fr 220px 220px; gap: 14px; margin: 24px 0; }
+  .context-card { border-radius: 16px; padding: 20px 22px; }
+  .context-card.dark { background: #111214; border: 1px solid #24262A; }
+  .context-card.blue { background: #2F5BFF; color: #EAF0FF; }
+  .context-card.green { background: linear-gradient(155deg, #17F095 0%, #0BAE6C 100%); color: #06120C; }
+  .ctx-val { font-family: "Archivo Black", sans-serif; font-size: 30px; line-height: 1; }
+  .ctx-lbl { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 8px; opacity: 0.75; }
+
+  .rank-head {
+    font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: #6C707B;
+    padding: 13px 22px; border-bottom: 1px solid #24262A;
+  }
+  .rank-row { padding: 14px 22px; border-bottom: 1px solid #1B1C1F; }
+  .rank-row:last-child { border-bottom: none; }
+
+  .cols { display: grid; grid-template-columns: 36px 1fr 80px 96px 100px 110px 130px; align-items: center; }
+
+  .rank-num { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: #55585F; }
+  .ticker { font-family: "Archivo Black", sans-serif; font-size: 15px; color: #F4F5F6; }
+  .company { font-size: 12px; color: #9195A0; margin-top: 1px; }
+  .score { font-family: "Archivo Black", sans-serif; font-size: 17px; color: #12E28A; }
+  .score-max { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #55585F; }
+
+  .pill { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 20px; }
+  .pill-high { color: #06120C; background: #12E28A; }
+  .pill-medium { color: #EAF0FF; background: #2F5BFF; }
+
+  .mono-val { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; }
+  .pos { color: #12E28A; }
+  .neg { color: #FF6B5E; }
+
+  .result { display: flex; align-items: center; gap: 5px; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  .result.ok { color: #12E28A; }
+  .result.bad { color: #FF6B5E; }
+
+  .footnote { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: #55585F; padding: 14px 22px; }
+
+  .news-item { font-size: 13.5px; color: #D7D9DE; padding: 13px 0; border-top: 1px solid #1B1C1F; }
+  .news-item:first-child { border-top: none; }
+  .news-tag { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 11px; color: #12E28A; margin-right: 4px; }
+  .news-src { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #6C707B; margin-top: 3px; }
+
+  .stat-tile { border-radius: 16px; padding: 20px 22px; }
+  .stat-tile.green { background: linear-gradient(155deg, #17F095 0%, #0BAE6C 100%); color: #06120C; }
+  .stat-tile.blue { background: #2F5BFF; color: #EAF0FF; }
+  .stat-tile.white { background: #FFFFFF; color: #101114; }
+  .stat-val { font-family: "Archivo Black", sans-serif; font-size: 34px; line-height: 1; }
+  .stat-lbl { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 8px; opacity: 0.72; }
+</style>
+</helmet>
+
+<div class="board">
+
+  <div class="back-link">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+    Last 7 Days
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px">
+    <div class="wordmark">Monday, Aug 24</div>
+    <div class="mono" style="font-size:11px;color:#6C707B">Generated 09:11 ET &middot; Model v1.4.1</div>
+  </div>
+  <div class="eyebrow">US Equities &middot; S&amp;P 100 universe &middot; top 5 picks &amp; outcome</div>
+
+  <div class="context-row">
+    <div class="context-card dark">
+      <div class="eyebrow" style="margin-bottom:8px">That session</div>
+      <div style="font-size:13.5px;color:#D7D9DE;line-height:1.5">100 stocks ranked before open. Session closed 16:00 ET &mdash; outcomes below reflect the official close.</div>
+    </div>
+    <div class="context-card blue">
+      <div class="ctx-val">+0.9%</div>
+      <div class="ctx-lbl">S&amp;P 500 that session</div>
+    </div>
+    <div class="context-card green">
+      <div class="ctx-val">71%</div>
+      <div class="ctx-lbl">Hit rate that day</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px">
+    <div class="rank-head cols">
+      <div>#</div><div>Symbol</div><div>AI Score</div><div>Confidence</div><div>Actual</div><div>vs S&amp;P 500</div><div>Result</div>
+    </div>
+
+    <div class="rank-row cols">
+      <div class="rank-num">01</div>
+      <div><div class="ticker">NVDA</div><div class="company">NVIDIA Corp</div></div>
+      <div class="score">91<span class="score-max">/100</span></div>
+      <div><span class="pill pill-high">High</span></div>
+      <div class="mono-val pos">+1.8%</div>
+      <div class="mono-val pos">+0.9%</div>
+      <div class="result ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Correct</div>
+    </div>
+    <div class="rank-row cols">
+      <div class="rank-num">02</div>
+      <div><div class="ticker">AMD</div><div class="company">Advanced Micro Devices</div></div>
+      <div class="score">87<span class="score-max">/100</span></div>
+      <div><span class="pill pill-high">High</span></div>
+      <div class="mono-val neg">&minus;0.4%</div>
+      <div class="mono-val neg">&minus;1.3%</div>
+      <div class="result bad"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 6l12 12M18 6L6 18"/></svg>Incorrect</div>
+    </div>
+    <div class="rank-row cols">
+      <div class="rank-num">03</div>
+      <div><div class="ticker">META</div><div class="company">Meta Platforms</div></div>
+      <div class="score">82<span class="score-max">/100</span></div>
+      <div><span class="pill pill-medium">Medium</span></div>
+      <div class="mono-val pos">+2.0%</div>
+      <div class="mono-val pos">+1.1%</div>
+      <div class="result ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Correct</div>
+    </div>
+    <div class="rank-row cols">
+      <div class="rank-num">04</div>
+      <div><div class="ticker">AVGO</div><div class="company">Broadcom Inc</div></div>
+      <div class="score">78<span class="score-max">/100</span></div>
+      <div><span class="pill pill-medium">Medium</span></div>
+      <div class="mono-val pos">+0.7%</div>
+      <div class="mono-val neg">&minus;0.2%</div>
+      <div class="result ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Correct</div>
+    </div>
+    <div class="rank-row cols">
+      <div class="rank-num">05</div>
+      <div><div class="ticker">MU</div><div class="company">Micron Technology</div></div>
+      <div class="score">74<span class="score-max">/100</span></div>
+      <div><span class="pill pill-medium">Medium</span></div>
+      <div class="mono-val neg">&minus;0.3%</div>
+      <div class="mono-val neg">&minus;1.2%</div>
+      <div class="result bad"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 6l12 12M18 6L6 18"/></svg>Incorrect</div>
+    </div>
+  </div>
+
+  <div class="eyebrow" style="margin-bottom:12px">Notable news that day</div>
+  <div class="panel" style="margin-bottom:20px;padding:8px 22px">
+    <div class="news-item">
+      <span class="news-tag">NVDA</span> NVIDIA beats Q3 estimates, raises data-center revenue guidance
+      <div class="news-src">Reuters &middot; Aug 23, 21:40 ET</div>
+    </div>
+    <div class="news-item">
+      <span class="news-tag">&mdash;</span> Semiconductor sector rallies on AI capex outlook
+      <div class="news-src">Bloomberg &middot; Aug 23, 23:05 ET</div>
+    </div>
+    <div class="news-item">
+      <span class="news-tag">AMD</span> AMD announces new data-center GPU roadmap, guidance unchanged
+      <div class="news-src">CNBC &middot; Aug 24, 02:15 ET</div>
+    </div>
+    <div class="news-item">
+      <span class="news-tag">META</span> Meta raises full-year ad revenue outlook after strong engagement metrics
+      <div class="news-src">Reuters &middot; Aug 24, 03:50 ET</div>
+    </div>
+  </div>
+
+  <div class="eyebrow" style="margin-bottom:12px">That day&rsquo;s aggregate</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+    <div class="stat-tile green"><div class="stat-val">71%</div><div class="stat-lbl">hit rate</div></div>
+    <div class="stat-tile blue"><div class="stat-val">+0.3%</div><div class="stat-lbl">avg excess return</div></div>
+    <div class="stat-tile white"><div class="stat-val">64%</div><div class="stat-lbl">directional accuracy</div></div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

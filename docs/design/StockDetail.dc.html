@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  a { color: #12E28A; text-decoration: none; }
+  a:hover { color: #5CF0B3; }
+
+  .board {
+    width: 1200px;
+    background: #070707;
+    color: #F4F5F6;
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    padding: 40px 44px 56px;
+  }
+
+  .back-link { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: #6C707B; display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
+  .mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  .eyebrow { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #9195A0; }
+  .panel { background: #111214; border: 1px solid #24262A; border-radius: 16px; }
+
+  /* header */
+  .ticker-h { font-family: "Archivo Black", sans-serif; font-size: 36px; letter-spacing: -0.01em; }
+  .company-h { font-size: 14px; color: #9195A0; margin-top: 2px; }
+  .sector-tag { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #6C707B; border: 1px solid #24262A; border-radius: 20px; padding: 4px 11px; display: inline-block; margin-top: 10px; }
+
+  /* two-col: chart + hero rank card */
+  .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin: 22px 0; }
+
+  .chart-card { padding: 22px 24px; }
+  .chart-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .price-now { font-family: "Archivo Black", sans-serif; font-size: 24px; }
+  .price-delta { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: #12E28A; margin-left: 8px; }
+  .range-pills { display: flex; gap: 6px; }
+  .range-pill { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #6C707B; padding: 4px 10px; border-radius: 20px; border: 1px solid #24262A; }
+  .range-pill.active { color: #06120C; background: #12E28A; border-color: #12E28A; }
+
+  .hero-rank-card {
+    background: linear-gradient(155deg, #17F095 0%, #0BAE6C 100%);
+    border-radius: 16px; padding: 24px 24px; color: #06120C;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .hero-num { font-family: "Archivo Black", sans-serif; font-size: 60px; line-height: 0.85; }
+  .hero-lbl { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 8px; opacity: 0.75; }
+  .hero-rank-badge { font-family: "Archivo Black", sans-serif; font-size: 14px; background: #06120C; color: #12E28A; padding: 4px 10px; border-radius: 20px; display: inline-block; }
+  .hero-explain { font-family: "Archivo", sans-serif; font-size: 12.5px; line-height: 1.5; margin-top: 14px; opacity: 0.85; }
+
+  /* fundamentals row */
+  .fund-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 20px; }
+  .fund-tile { padding: 16px 16px; }
+  .fund-val { font-family: "Archivo Black", sans-serif; font-size: 19px; }
+  .fund-lbl { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: #6C707B; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 6px; }
+
+  /* news */
+  .news-item { font-size: 13.5px; color: #D7D9DE; padding: 13px 0; border-top: 1px solid #1B1C1F; }
+  .news-item:first-child { border-top: none; }
+  .news-src { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #6C707B; margin-top: 3px; }
+
+  /* history table */
+  .rank-head { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #6C707B; padding: 13px 22px; border-bottom: 1px solid #24262A; }
+  .rank-row { padding: 14px 22px; border-bottom: 1px solid #1B1C1F; }
+  .rank-row:last-child { border-bottom: none; }
+  .hist-cols { display: grid; grid-template-columns: 110px 70px 90px 96px 100px 110px 130px; align-items: center; }
+  .score { font-family: "Archivo Black", sans-serif; font-size: 16px; color: #12E28A; }
+  .score-max { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #55585F; }
+  .pill { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 20px; }
+  .pill-high { color: #06120C; background: #12E28A; }
+  .pill-medium { color: #EAF0FF; background: #2F5BFF; }
+  .mono-val { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; }
+  .pos { color: #12E28A; } .neg { color: #FF6B5E; }
+  .result { display: flex; align-items: center; gap: 5px; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  .result.ok { color: #12E28A; } .result.bad { color: #FF6B5E; }
+  .result.pending { color: #6C707B; }
+
+  .section-title { display: flex; justify-content: space-between; align-items: baseline; margin: 28px 0 12px; }
+  .section-title h2 { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 15px; margin: 0; }
+</style>
+</helmet>
+
+<div class="board">
+
+  <div class="back-link">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+    Rankings
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div class="ticker-h">NVDA</div>
+      <div class="company-h">NVIDIA Corp</div>
+      <div class="sector-tag">Technology &middot; Semiconductors</div>
+    </div>
+    <div class="mono" style="font-size:11px;color:#6C707B;text-align:right">Data as of<br>2026-08-25 09:12 ET</div>
+  </div>
+
+  <div class="main-grid">
+    <div class="panel chart-card">
+      <div class="chart-toolbar">
+        <div style="display:flex;align-items:baseline">
+          <div class="price-now">$187.42</div>
+          <div class="price-delta">+2.14%</div>
+        </div>
+        <div class="range-pills">
+          <div class="range-pill">1M</div>
+          <div class="range-pill active">3M</div>
+          <div class="range-pill">1Y</div>
+          <div class="range-pill">ALL</div>
+        </div>
+      </div>
+
+      <svg viewBox="0 0 720 220" width="100%" height="200" preserveAspectRatio="none">
+        <line x1="0" y1="55" x2="720" y2="55" stroke="#1B1C1F" stroke-width="1"/>
+        <line x1="0" y1="110" x2="720" y2="110" stroke="#1B1C1F" stroke-width="1"/>
+        <line x1="0" y1="165" x2="720" y2="165" stroke="#1B1C1F" stroke-width="1"/>
+        <g stroke-width="1.6">
+          <line x1="20" y1="120" x2="20" y2="150" stroke="#FF6B5E"/><rect x="16" y="128" width="8" height="16" fill="#FF6B5E"/>
+          <line x1="40" y1="110" x2="40" y2="140" stroke="#12E28A"/><rect x="36" y="112" width="8" height="20" fill="#12E28A"/>
+          <line x1="60" y1="95" x2="60" y2="130" stroke="#12E28A"/><rect x="56" y="98" width="8" height="24" fill="#12E28A"/>
+          <line x1="80" y1="100" x2="80" y2="125" stroke="#FF6B5E"/><rect x="76" y="105" width="8" height="12" fill="#FF6B5E"/>
+          <line x1="100" y1="85" x2="100" y2="118" stroke="#12E28A"/><rect x="96" y="88" width="8" height="22" fill="#12E28A"/>
+          <line x1="120" y1="90" x2="120" y2="112" stroke="#12E28A"/><rect x="116" y="92" width="8" height="14" fill="#12E28A"/>
+          <line x1="140" y1="70" x2="140" y2="105" stroke="#12E28A"/><rect x="136" y="74" width="8" height="24" fill="#12E28A"/>
+          <line x1="160" y1="75" x2="160" y2="98" stroke="#FF6B5E"/><rect x="156" y="78" width="8" height="14" fill="#FF6B5E"/>
+          <line x1="180" y1="60" x2="180" y2="92" stroke="#12E28A"/><rect x="176" y="64" width="8" height="20" fill="#12E28A"/>
+          <line x1="200" y1="65" x2="200" y2="85" stroke="#12E28A"/><rect x="196" y="67" width="8" height="12" fill="#12E28A"/>
+          <line x1="220" y1="55" x2="220" y2="80" stroke="#FF6B5E"/><rect x="216" y="58" width="8" height="16" fill="#FF6B5E"/>
+          <line x1="240" y1="45" x2="240" y2="72" stroke="#12E28A"/><rect x="236" y="48" width="8" height="20" fill="#12E28A"/>
+          <line x1="260" y1="50" x2="260" y2="68" stroke="#FF6B5E"/><rect x="256" y="52" width="8" height="12" fill="#FF6B5E"/>
+          <line x1="280" y1="35" x2="280" y2="60" stroke="#12E28A"/><rect x="276" y="38" width="8" height="18" fill="#12E28A"/>
+        </g>
+        <text x="0" y="215" fill="#55585F" font-family="IBM Plex Mono" font-size="10">May</text>
+        <text x="330" y="215" fill="#55585F" font-family="IBM Plex Mono" font-size="10">Jun</text>
+        <text x="660" y="215" fill="#55585F" font-family="IBM Plex Mono" font-size="10">Aug</text>
+      </svg>
+      <div class="eyebrow" style="margin-top:8px">chart placeholder &mdash; renders via lightweight-charts in production, fed by GET /stocks/{ticker}/prices</div>
+    </div>
+
+    <div class="hero-rank-card">
+      <div>
+        <span class="hero-rank-badge">RANK #1 TODAY</span>
+      </div>
+      <div>
+        <div class="hero-num">91</div>
+        <div class="hero-lbl">AI Score &middot; Confidence High</div>
+        <div class="hero-explain">Positive earnings surprise, strong after-hours momentum, and elevated trading volume are driving today's ranking. See full explanation on the rankings page.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fund-grid">
+    <div class="panel fund-tile"><div class="fund-val">$2.1T</div><div class="fund-lbl">Market Cap</div></div>
+    <div class="panel fund-tile"><div class="fund-val">41.2</div><div class="fund-lbl">P / E</div></div>
+    <div class="panel fund-tile"><div class="fund-val">$3.42</div><div class="fund-lbl">EPS</div></div>
+    <div class="panel fund-tile"><div class="fund-val pos">+18.4%</div><div class="fund-lbl">Revenue Growth</div></div>
+    <div class="panel fund-tile"><div class="fund-val">62.8%</div><div class="fund-lbl">ROE</div></div>
+    <div class="panel fund-tile"><div class="fund-val">0.03%</div><div class="fund-lbl">Dividend Yield</div></div>
+  </div>
+
+  <div class="section-title"><h2>Recent news</h2><span class="eyebrow">GET /stocks/{ticker}/news</span></div>
+  <div class="panel" style="padding:8px 22px;margin-bottom:8px">
+    <div class="news-item">NVIDIA beats Q3 estimates, raises data-center revenue guidance
+      <div class="news-src">Reuters &middot; Aug 23, 21:40 ET</div>
+    </div>
+    <div class="news-item">Semiconductor sector rallies on AI capex outlook
+      <div class="news-src">Bloomberg &middot; Aug 23, 23:05 ET</div>
+    </div>
+    <div class="news-item">Analyst raises NVDA price target citing data-center demand
+      <div class="news-src">CNBC &middot; Aug 22, 14:10 ET</div>
+    </div>
+  </div>
+
+  <div class="section-title"><h2>Prediction history for NVDA</h2><span class="eyebrow">GET /stocks/{ticker}/predictions</span></div>
+  <div class="panel">
+    <div class="rank-head hist-cols">
+      <div>Date</div><div>Rank</div><div>AI Score</div><div>Confidence</div><div>Actual</div><div>vs S&amp;P 500</div><div>Result</div>
+    </div>
+    <div class="rank-row hist-cols">
+      <div class="mono-val">Aug 24</div><div class="mono-val">#1</div>
+      <div class="score">91<span class="score-max">/100</span></div>
+      <div><span class="pill pill-high">High</span></div>
+      <div class="mono-val pos">+1.8%</div><div class="mono-val pos">+0.9%</div>
+      <div class="result ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Correct</div>
+    </div>
+    <div class="rank-row hist-cols">
+      <div class="mono-val">Aug 19</div><div class="mono-val">#2</div>
+      <div class="score">85<span class="score-max">/100</span></div>
+      <div><span class="pill pill-high">High</span></div>
+      <div class="mono-val neg">&minus;0.6%</div><div class="mono-val neg">&minus;1.4%</div>
+      <div class="result bad"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 6l12 12M18 6L6 18"/></svg>Incorrect</div>
+    </div>
+    <div class="rank-row hist-cols">
+      <div class="mono-val">Aug 13</div><div class="mono-val">#1</div>
+      <div class="score">89<span class="score-max">/100</span></div>
+      <div><span class="pill pill-high">High</span></div>
+      <div class="mono-val pos">+2.4%</div><div class="mono-val pos">+1.7%</div>
+      <div class="result ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Correct</div>
+    </div>
+    <div class="rank-row hist-cols">
+      <div class="mono-val">Aug 7</div><div class="mono-val">#3</div>
+      <div class="score">76<span class="score-max">/100</span></div>
+      <div><span class="pill pill-medium">Medium</span></div>
+      <div class="mono-val">&mdash;</div><div class="mono-val">&mdash;</div>
+      <div class="result pending">Session pending</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
