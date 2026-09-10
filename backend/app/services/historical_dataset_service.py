@@ -1,10 +1,11 @@
 import logging
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
+from app.models.feature_snapshot import FeatureSnapshot
 from app.models.security import Security
 from app.services.feature_service import (
     compute_benchmark_features,
@@ -36,6 +37,13 @@ def build_historical_dataset(
     ~2 years (see app/providers/macro/fred.py's vintage caveat), and
     fundamentals only as far as each company's pulled XBRL history. Rows
     reflect that honestly with NULLs rather than fabricating coverage.
+
+    Idempotent by construction: feature_snapshots has no unique constraint
+    (unlike market_prices/prediction_runs), because live use deliberately
+    wants a fresh snapshot per run. A historical re-run for an overlapping
+    date range must not just accumulate duplicates, though — each day's own
+    intraday_cutoff is a deterministic, stable key, so existing rows at that
+    exact as_of for this universe are deleted before writing fresh ones.
     """
     trading_days = get_trading_days(db, start_date, end_date)
     securities = db.execute(
@@ -43,6 +51,7 @@ def build_historical_dataset(
         .join(Company, Security.company_id == Company.id)
         .where(Security.is_active.is_(True), Security.ticker.in_(universe_tickers))
     ).all()
+    security_ids = [s.id for s in securities]
 
     snapshots_written = 0
     labeled_rows = 0
@@ -50,6 +59,13 @@ def build_historical_dataset(
 
     for target_day in trading_days:
         market_cutoff, intraday_cutoff = historical_as_of_cutoffs(target_day)
+
+        db.execute(
+            delete(FeatureSnapshot).where(
+                FeatureSnapshot.as_of == intraday_cutoff,
+                FeatureSnapshot.security_id.in_(security_ids),
+            )
+        )
 
         benchmark_features, benchmark_return_20d = compute_benchmark_features(db, market_cutoff)
         sector_peer_returns_20d = compute_sector_peer_returns_20d(db, market_cutoff, universe_tickers)

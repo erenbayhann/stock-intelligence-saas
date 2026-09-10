@@ -119,3 +119,24 @@ def test_build_historical_dataset_end_to_end(db_session):
     assert first_row["ticker"] == "AAPL"
     assert "actual_return" in first_row
     assert "features" in first_row
+
+
+def test_build_historical_dataset_is_idempotent_on_rerun(db_session):
+    from sqlalchemy import select as sa_select
+
+    from app.models.feature_snapshot import FeatureSnapshot
+
+    aapl_id, spy_id = _setup(db_session)
+    days = [date(2026, 6, 10), date(2026, 6, 11), date(2026, 6, 12)]
+    for i, d in enumerate(days):
+        db_session.add(_bar(aapl_id, d, close=100.0 + i))
+        db_session.add(_bar(spy_id, d, close=500.0 + i))
+    db_session.commit()
+
+    build_historical_dataset(db_session, days[0], days[-1], {"AAPL"})
+    build_historical_dataset(db_session, days[0], days[-1], {"AAPL"})  # re-run over the same range
+
+    rows = db_session.scalars(
+        sa_select(FeatureSnapshot).where(FeatureSnapshot.security_id == aapl_id)
+    ).all()
+    assert len(rows) == 3  # not 6 — the second run replaced, not duplicated
