@@ -9,7 +9,7 @@ import logging
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import SessionLocal
-from app.services.universe_service import seed_universe
+from app.services.universe_service import seed_benchmarks, seed_universe
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +21,11 @@ def main() -> None:
     db = SessionLocal()
     try:
         result = seed_universe(db)
+        benchmark_result = seed_benchmarks(db)
     finally:
         db.close()
 
-    logger.info("Done: %s", result)
+    logger.info("Done: %s, %s", result, benchmark_result)
 
 
 if __name__ == "__main__":

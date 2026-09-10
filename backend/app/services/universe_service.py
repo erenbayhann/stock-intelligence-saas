@@ -18,6 +18,39 @@ def load_constituents(path: Path = DEFAULT_CONSTITUENTS_PATH) -> list[dict]:
         return json.load(f)
 
 
+# Benchmark securities (spec §6/§8: relative strength, benchmark return) are
+# tracked in `securities` like any other ticker so the existing market-data
+# backfill pipeline covers them, but are NOT part of the S&P 100 prediction
+# universe — deliberately kept out of sp100_constituents.json.
+BENCHMARKS = [
+    {"ticker": "SPY", "name": "SPDR S&P 500 ETF Trust", "sector": "Benchmark", "exchange": "NYSEARCA", "cik": "0000884394"},
+]
+
+
+def seed_benchmarks(db: Session, benchmarks: list[dict] | None = None) -> dict[str, int]:
+    """Idempotent, and always ensures is_active=True — must run AFTER
+    seed_universe(), whose own dropped-ticker deactivation pass runs over
+    every active security and would otherwise deactivate a benchmark it
+    doesn't recognize (a benchmark is intentionally absent from
+    sp100_constituents.json, see BENCHMARKS' docstring above).
+    """
+    benchmarks = benchmarks if benchmarks is not None else BENCHMARKS
+    written = 0
+    for row in benchmarks:
+        security = db.scalar(select(Security).where(Security.ticker == row["ticker"]))
+        if security is not None:
+            if not security.is_active:
+                security.is_active = True
+            continue
+        company = Company(cik=row["cik"], name=row["name"], sector=row["sector"])
+        db.add(company)
+        db.flush()
+        db.add(Security(company_id=company.id, ticker=row["ticker"], exchange=row["exchange"], is_active=True))
+        written += 1
+    db.commit()
+    return {"benchmarks_written": written}
+
+
 def seed_universe(db: Session, constituents: list[dict] | None = None) -> dict[str, int]:
     """Idempotently upsert the S&P 100 universe (companies + securities).
 
