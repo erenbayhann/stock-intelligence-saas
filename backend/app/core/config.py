@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     alpha_vantage_api_key: str = ""
     finnhub_api_key: str = ""
 
+    # News extraction (spec §5): real Claude Haiku 4.5 via the Anthropic API,
+    # not a heuristic — see docs/ai-stock-ranking-mvp-spec.md §5 for the
+    # "LLM choice" rationale. Model is a setting, not hardcoded, so upgrading
+    # to a larger model later is a one-line config change.
+    anthropic_api_key: str = ""
+    news_llm_model: str = "claude-haiku-4-5"
+    news_lookback_hours: int = 24
+
 
 @lru_cache
 def get_settings() -> Settings:
