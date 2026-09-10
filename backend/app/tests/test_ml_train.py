@@ -31,12 +31,19 @@ def test_chronological_split_never_splits_within_a_date():
 
 
 def test_compute_sample_weights_decays_from_most_recent_date():
-    dates = pd.Series([date(2026, 1, 1), date(2026, 1, 1) + pd.Timedelta(days=RECENCY_HALFLIFE_DAYS)])
+    dates = pd.Series([
+        date(2026, 1, 1),
+        date(2026, 1, 1) + pd.Timedelta(days=RECENCY_HALFLIFE_DAYS),
+        date(2026, 1, 1) + pd.Timedelta(days=2 * RECENCY_HALFLIFE_DAYS),
+    ])
 
     weights = compute_sample_weights(dates)
 
-    assert weights[1] == pytest.approx(1.0)  # most recent date -> zero age -> weight 1
-    assert weights[0] == pytest.approx(np.exp(-1), rel=1e-6)  # exactly one halflife back
+    assert weights[2] == pytest.approx(1.0)  # most recent date -> zero age -> weight 1
+    # Real half-life: exactly 0.5 at one halflife back, 0.25 at two — not
+    # exp(-1)=0.368 / exp(-2)=0.135, which is what the bug used to produce.
+    assert weights[1] == pytest.approx(0.5, rel=1e-9)
+    assert weights[0] == pytest.approx(0.25, rel=1e-9)
 
 
 def test_evaluate_predictions_perfect_ranking():
