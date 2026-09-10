@@ -33,6 +33,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="hover:text-ink-soft no-underline">
                 Rankings
               </Link>
+              <Link href="/methodology" className="hover:text-ink-soft no-underline">
+                Methodology
+              </Link>
               <Link href="/admin" className="hover:text-ink-soft no-underline">
                 Admin
               </Link>
@@ -43,7 +46,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <footer className="border-t border-panel-border">
           <div className="mx-auto max-w-6xl px-6 py-5 text-xs text-ink-soft">
             Research and decision-support tool only. Model-generated research
-            signal, not investment advice. Not a guarantee of future returns.
+            signal, not investment advice. Not a guarantee of future returns.{" "}
+            <Link href="/methodology" className="underline hover:text-ink">
+              Methodology &amp; limitations.
+            </Link>
           </div>
         </footer>
       </body>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PUBLIC_API_BASE } from "@/lib/api";
+import { Skeleton } from "@/components/Skeleton";
 
 interface JobHealthItem {
   job_name: string;
@@ -63,8 +64,10 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+type AuthState = "checking" | "authed" | "anon";
+
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState<AuthState>("checking");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,9 +93,9 @@ export default function AdminPage() {
       setChallengers(challengersRes);
       setCredit(creditRes);
       setNewsRollout(rolloutRes);
-      setAuthed(true);
+      setAuthed("authed");
     } catch {
-      setAuthed(false);
+      setAuthed("anon");
     }
   }, []);
 
@@ -148,7 +151,16 @@ export default function AdminPage() {
     }
   }
 
-  if (!authed) {
+  if (authed === "checking") {
+    return (
+      <div className="max-w-sm mx-auto mt-16">
+        <Skeleton className="h-3 w-20 mx-auto mb-4" />
+        <Skeleton className="h-40 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (authed === "anon") {
     return (
       <div className="max-w-sm mx-auto mt-16">
         <div className="text-[10.5px] font-bold uppercase tracking-widest text-ink-soft mb-4 text-center">
@@ -193,7 +205,7 @@ export default function AdminPage() {
           {jobs.map((job) => (
             <div
               key={job.job_name}
-              className="grid grid-cols-[1fr_100px_180px] items-center px-5 py-3 border-b border-row-border last:border-b-0 text-sm"
+              className="grid grid-cols-[1fr_100px_180px] items-center px-5 py-3 border-b border-row-border last:border-b-0 text-sm hover-lift hover-glow-neutral"
             >
               <div className="text-ink-news">{job.job_name}</div>
               <div

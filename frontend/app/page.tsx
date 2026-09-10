@@ -5,6 +5,22 @@ import { explanationToFactors } from "@/lib/explanation";
 import { ConfidencePill } from "@/components/ConfidencePill";
 import { DirectionBadge, ResultBadge, SignedValue } from "@/components/ResultBadge";
 import { StatTile } from "@/components/StatTile";
+import { AiScoreCountUp } from "@/components/AiScoreCountUp";
+import { Sparkline } from "@/components/Sparkline";
+import { RankChangeBadge } from "@/components/RankChangeBadge";
+
+async function loadRowContext(ticker: string) {
+  const [prices, predictions] = await Promise.all([
+    api.stockPrices(ticker, 12),
+    api.stockPredictions(ticker, 2),
+  ]);
+  const closes = (prices?.bars ?? [])
+    .slice()
+    .sort((a, b) => a.ts.localeCompare(b.ts))
+    .map((b) => b.close);
+  const priorEntry = predictions?.predictions?.[1];
+  return { sparkline: closes, previousRank: priorEntry?.rank ?? null };
+}
 
 export default async function DashboardPage() {
   const [ranking, history, performance] = await Promise.all([
@@ -22,8 +38,9 @@ export default async function DashboardPage() {
     );
   }
 
-  const [featured, ...rest] = ranking.top5;
+  const featured = ranking.top5[0];
   const factors = featured ? explanationToFactors(featured.explanation) : [];
+  const rowContexts = await Promise.all(ranking.top5.map((item) => loadRowContext(item.ticker)));
 
   return (
     <div>
@@ -37,25 +54,30 @@ export default async function DashboardPage() {
       </div>
 
       <div className="rounded-2xl border border-panel-border bg-panel mb-4 overflow-hidden">
-        <div className="grid grid-cols-[40px_1fr_90px_110px_90px] px-5 py-3 border-b border-panel-border text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">
+        <div className="grid grid-cols-[40px_1fr_80px_90px_110px_90px] px-5 py-3 border-b border-panel-border text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">
           <div>#</div>
           <div>Symbol</div>
+          <div>7d trend</div>
           <div>AI Score</div>
           <div>Confidence</div>
           <div>Direction</div>
         </div>
-        {ranking.top5.map((item) => (
+        {ranking.top5.map((item, i) => (
           <Link
             key={item.ticker}
             href={`/stocks/${item.ticker}`}
-            className="grid grid-cols-[40px_1fr_90px_110px_90px] items-center px-5 py-4 border-b border-row-border last:border-b-0 no-underline text-ink hover:bg-white/[0.02]"
+            className="grid grid-cols-[40px_1fr_80px_90px_110px_90px] items-center px-5 py-4 border-b border-row-border last:border-b-0 no-underline text-ink hover-lift hover-glow-neutral"
           >
-            <div className="font-mono-tabular text-sm text-ink-dim">
+            <div className="font-mono-tabular text-sm text-ink-dim flex items-center">
               {String(item.rank).padStart(2, "0")}
+              <RankChangeBadge currentRank={item.rank} previousRank={rowContexts[i].previousRank} />
             </div>
             <div>
               <div className="font-display text-base text-ink">{item.ticker}</div>
               <div className="text-xs text-ink-soft mt-0.5">{item.company_name}</div>
+            </div>
+            <div>
+              <Sparkline values={rowContexts[i].sparkline} />
             </div>
             <div className="font-display text-xl text-green">
               {formatScore(item.ai_score)}
@@ -80,7 +102,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <div className="font-display text-[88px] leading-[0.85]">
-                {formatScore(featured.ai_score)}
+                <AiScoreCountUp value={featured.ai_score} />
               </div>
               <div className="font-sans font-bold text-[11.5px] uppercase tracking-wide mt-2 opacity-75">
                 AI Score &middot; Confidence {featured.confidence}
@@ -105,7 +127,10 @@ export default async function DashboardPage() {
             {featured.related_news.length > 0 && (
               <div className="mt-3.5">
                 {featured.related_news.slice(0, 2).map((news) => (
-                  <div key={news.id} className="text-sm text-ink-news py-2.5 border-t border-row-border first:border-t-0">
+                  <div
+                    key={news.id}
+                    className="text-sm text-ink-news py-2.5 border-t border-row-border first:border-t-0 hover-lift rounded-lg px-2 -mx-2"
+                  >
                     <a href={news.url} target="_blank" rel="noreferrer">
                       {news.title}
                     </a>
@@ -125,7 +150,10 @@ export default async function DashboardPage() {
           <circle cx="12" cy="12" r="9" />
           <path d="M12 8v5M12 16h.01" />
         </svg>
-        Model-generated research signal, not investment advice. Not a guarantee of future returns.
+        Model-generated research signal, not investment advice. Not a guarantee of future returns.{" "}
+        <Link href="/methodology" className="text-ink-soft underline hover:text-ink">
+          See Methodology.
+        </Link>
       </div>
 
       <div className="text-[10.5px] font-bold uppercase tracking-widest text-ink-soft mb-3">
@@ -145,7 +173,7 @@ export default async function DashboardPage() {
             <Link
               key={day.target_session_date}
               href={`/day/${day.target_session_date}`}
-              className="grid grid-cols-[90px_90px_90px_90px_1fr_110px] items-center px-5 py-3 border-b border-row-border last:border-b-0 font-mono-tabular text-xs text-ink-news no-underline hover:bg-white/[0.02]"
+              className="grid grid-cols-[90px_90px_90px_90px_1fr_110px] items-center px-5 py-3 border-b border-row-border last:border-b-0 font-mono-tabular text-xs text-ink-news no-underline hover-lift hover-glow-neutral"
             >
               <div>{formatShortDate(day.target_session_date)}</div>
               <div>{day.top_pick?.ticker ?? "—"}</div>

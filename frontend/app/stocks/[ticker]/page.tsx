@@ -6,6 +6,9 @@ import { explanationToFactors } from "@/lib/explanation";
 import { ConfidencePill } from "@/components/ConfidencePill";
 import { ResultBadge, SignedValue } from "@/components/ResultBadge";
 import { PriceChart } from "@/components/PriceChart";
+import { AiScoreCountUp } from "@/components/AiScoreCountUp";
+
+const BENCHMARK_TICKER = "SPY";
 
 export default async function StockDetailPage({
   params,
@@ -15,11 +18,12 @@ export default async function StockDetailPage({
   const { ticker } = await params;
   const upperTicker = ticker.toUpperCase();
 
-  const [detail, prices, news, predictions] = await Promise.all([
+  const [detail, prices, news, predictions, benchmarkPrices] = await Promise.all([
     api.stockDetail(upperTicker),
     api.stockPrices(upperTicker),
     api.stockNews(upperTicker),
     api.stockPredictions(upperTicker),
+    upperTicker === BENCHMARK_TICKER ? Promise.resolve(null) : api.stockPrices(BENCHMARK_TICKER),
   ]);
 
   if (!detail) notFound();
@@ -53,7 +57,7 @@ export default async function StockDetailPage({
 
       <div className="grid grid-cols-[1fr_320px] gap-4 my-5">
         <div className="rounded-2xl border border-panel-border bg-panel p-6">
-          <PriceChart bars={prices?.bars ?? []} />
+          <PriceChart bars={prices?.bars ?? []} benchmarkBars={benchmarkPrices?.bars} />
         </div>
 
         <div className="rounded-2xl bg-gradient-to-br from-green-grad-from to-green-grad-to text-hero-ink p-6 flex flex-col justify-between">
@@ -69,7 +73,9 @@ export default async function StockDetailPage({
             )}
           </div>
           <div>
-            <div className="font-display text-6xl leading-[0.85]">{formatScore(detail.ai_score)}</div>
+            <div className="font-display text-6xl leading-[0.85]">
+              {detail.ai_score !== null ? <AiScoreCountUp value={detail.ai_score} /> : "—"}
+            </div>
             <div className="font-sans font-bold text-[11px] uppercase tracking-wide mt-2 opacity-75">
               AI Score{detail.confidence ? ` · Confidence ${detail.confidence}` : ""}
             </div>
@@ -84,21 +90,21 @@ export default async function StockDetailPage({
 
       {fundamentals && (
         <div className="grid grid-cols-6 gap-3 mb-5">
-          <div className="rounded-2xl border border-panel-border bg-panel p-4">
+          <div className="rounded-2xl border border-panel-border bg-panel p-4 hover-lift hover-glow-neutral">
             <div className="font-display text-[19px]">{formatCompactUsd(fundamentals.market_cap)}</div>
             <div className="font-mono-tabular text-[10px] text-ink-faint uppercase tracking-wide mt-1.5">Market Cap</div>
           </div>
-          <div className="rounded-2xl border border-panel-border bg-panel p-4">
+          <div className="rounded-2xl border border-panel-border bg-panel p-4 hover-lift hover-glow-neutral">
             <div className="font-display text-[19px]">{fundamentals.pe_ratio?.toFixed(1) ?? "—"}</div>
             <div className="font-mono-tabular text-[10px] text-ink-faint uppercase tracking-wide mt-1.5">P / E</div>
           </div>
-          <div className="rounded-2xl border border-panel-border bg-panel p-4">
+          <div className="rounded-2xl border border-panel-border bg-panel p-4 hover-lift hover-glow-neutral">
             <div className="font-display text-[19px]">
               {fundamentals.eps !== null ? `$${fundamentals.eps.toFixed(2)}` : "—"}
             </div>
             <div className="font-mono-tabular text-[10px] text-ink-faint uppercase tracking-wide mt-1.5">EPS</div>
           </div>
-          <div className="rounded-2xl border border-panel-border bg-panel p-4">
+          <div className="rounded-2xl border border-panel-border bg-panel p-4 hover-lift hover-glow-neutral">
             <div className="font-display text-[19px] text-green">
               {formatPercent(fundamentals.revenue_growth)}
             </div>
@@ -106,13 +112,13 @@ export default async function StockDetailPage({
               Revenue Growth
             </div>
           </div>
-          <div className="rounded-2xl border border-panel-border bg-panel p-4">
+          <div className="rounded-2xl border border-panel-border bg-panel p-4 hover-lift hover-glow-neutral">
             <div className="font-display text-[19px]">{formatPercent(fundamentals.operating_margin)}</div>
             <div className="font-mono-tabular text-[10px] text-ink-faint uppercase tracking-wide mt-1.5">
               Operating Margin
             </div>
           </div>
-          <div className="rounded-2xl border border-panel-border bg-panel p-4">
+          <div className="rounded-2xl border border-panel-border bg-panel p-4 hover-lift hover-glow-neutral">
             <div className="font-display text-[19px]">{formatPercent(fundamentals.dividend_yield, 2)}</div>
             <div className="font-mono-tabular text-[10px] text-ink-faint uppercase tracking-wide mt-1.5">
               Dividend Yield
@@ -127,7 +133,10 @@ export default async function StockDetailPage({
       <div className="rounded-2xl border border-panel-border bg-panel px-5 mb-2">
         {news && news.articles.length > 0 ? (
           news.articles.slice(0, 5).map((article) => (
-            <div key={article.id} className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0">
+            <div
+              key={article.id}
+              className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0 hover-lift rounded-lg px-2 -mx-2"
+            >
               <a href={article.url} target="_blank" rel="noreferrer">
                 {article.title}
               </a>
@@ -158,7 +167,7 @@ export default async function StockDetailPage({
           predictions.predictions.map((p) => (
             <div
               key={p.target_session_date}
-              className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0"
+              className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 hover-lift hover-glow-neutral"
             >
               <div className="font-mono-tabular text-sm">{formatShortDate(p.target_session_date)}</div>
               <div className="font-mono-tabular text-sm">#{p.rank}</div>

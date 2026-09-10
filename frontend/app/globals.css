@@ -43,3 +43,106 @@ body {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Interaction layer (Phase 9 polish pass) ----------------------------
+   Motion only — no color/typography/layout tokens change here. Every rule
+   below is disabled under prefers-reduced-motion. */
+
+.hover-lift {
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out, background-color 160ms ease-out;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.hover-glow-green:hover {
+  box-shadow: 0 8px 24px -8px rgba(18, 226, 138, 0.35);
+}
+.hover-glow-blue:hover {
+  box-shadow: 0 8px 24px -8px rgba(47, 91, 255, 0.35);
+}
+.hover-glow-neutral:hover {
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* Stat tiles: hover intensifies the tile's OWN color, never shifts hue
+   toward another tile's color — the color itself carries meaning
+   (green = positive, blue = medium-confidence context, per §19). */
+.stat-tile-interactive {
+  transition: transform 160ms ease-out, filter 160ms ease-out, box-shadow 160ms ease-out;
+  position: relative;
+  overflow: hidden;
+}
+.stat-tile-interactive:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.18) brightness(1.06);
+}
+.stat-tile-interactive.tile-green:hover {
+  box-shadow: 0 10px 28px -10px rgba(18, 226, 138, 0.45);
+}
+.stat-tile-interactive.tile-blue:hover {
+  box-shadow: 0 10px 28px -10px rgba(47, 91, 255, 0.45);
+}
+.stat-tile-interactive.tile-white:hover {
+  box-shadow: 0 10px 28px -10px rgba(255, 255, 255, 0.25);
+}
+.stat-tile-interactive::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.22) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 550ms ease-out;
+  pointer-events: none;
+}
+.stat-tile-interactive:hover::after {
+  transform: translateX(120%);
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.result-correct-highlight {
+  animation: fade-in-up 420ms ease-out both;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, #111214 25%, #1b1c1f 37%, #111214 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift,
+  .stat-tile-interactive,
+  .stat-tile-interactive::after {
+    transition: none !important;
+    animation: none !important;
+  }
+  .hover-lift:hover,
+  .stat-tile-interactive:hover {
+    transform: none !important;
+  }
+  .result-correct-highlight {
+    animation: none !important;
+  }
+  .skeleton {
+    animation: none !important;
+  }
+}

@@ -86,7 +86,12 @@ export default async function DayDetailPage({
           <Link
             key={item.ticker}
             href={`/stocks/${item.ticker}`}
-            className="grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 no-underline text-ink hover:bg-white/[0.02]"
+            className={
+              "grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 no-underline text-ink hover-lift " +
+              (item.direction_correct === true
+                ? "hover-glow-green border-l-2 border-l-green"
+                : "hover-glow-neutral border-l-2 border-l-transparent")
+            }
           >
             <div className="font-mono-tabular text-sm text-ink-dim">
               {String(item.rank).padStart(2, "0")}
@@ -108,7 +113,7 @@ export default async function DayDetailPage({
             <div>
               <SignedValue value={item.vs_benchmark} />
             </div>
-            <div>
+            <div className={item.direction_correct === true ? "result-correct-highlight" : undefined}>
               <ResultBadge correct={item.direction_correct} />
             </div>
           </Link>
@@ -122,7 +127,10 @@ export default async function DayDetailPage({
           </div>
           <div className="rounded-2xl border border-panel-border bg-panel px-5 mb-5">
             {detail.notable_news.map((news) => (
-              <div key={news.id} className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0">
+              <div
+                key={news.id}
+                className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0 hover-lift rounded-lg px-2 -mx-2"
+              >
                 {news.title}
                 <div className="font-mono-tabular text-[11px] text-ink-faint mt-0.5">
                   {news.source} &middot; {formatDateTimeEt(news.published_time)}
