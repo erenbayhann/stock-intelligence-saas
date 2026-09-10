@@ -14,8 +14,12 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Scoped to backend/ (Python venv artifact path) — a bare "lib/" here would
+# also match frontend/lib/, which is real committed TypeScript source, not
+# a build artifact. Found and fixed 2026-09-10: that exact collision had
+# silently kept frontend/lib/*.ts out of every commit since Phase 9 began.
+backend/lib/
+backend/lib64/
 parts/
 sdist/
 var/
