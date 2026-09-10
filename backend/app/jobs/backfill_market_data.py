@@ -13,9 +13,12 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import SessionLocal
 from app.providers.market_data.alpaca import AlpacaMarketDataProvider
+from app.services.job_run_service import track_job_run
 from app.services.market_data_service import backfill_daily_bars
 
 logger = logging.getLogger(__name__)
+
+JOB_NAME = "market_data_ingestion"
 
 
 def main() -> None:
@@ -31,7 +34,9 @@ def main() -> None:
 
     db = SessionLocal()
     try:
-        result = backfill_daily_bars(db, provider, start=start, end=end)
+        with track_job_run(db, JOB_NAME) as job_run:
+            result = backfill_daily_bars(db, provider, start=start, end=end)
+            job_run.job_metadata = result
     finally:
         db.close()
 

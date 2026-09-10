@@ -13,6 +13,9 @@ class ModelVersion(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     version_label: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     algorithm: Mapped[str] = mapped_column(Text, nullable=False)
+    # 'price_fundamentals_macro' | 'price_fundamentals_macro_news' — which challenger
+    # lineage this belongs to (spec §12); lets both lineages live in one table.
+    feature_set: Mapped[str] = mapped_column(Text, nullable=False)
     trained_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)  # champion|challenger|retired
     promoted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

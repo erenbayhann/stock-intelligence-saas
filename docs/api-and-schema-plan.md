@@ -70,16 +70,71 @@ GET  /api/v1/model/versions/{id}
 **Operational**
 ```
 GET  /api/v1/health
-     → liveness/readiness check (DB reachable, last successful job run per job type)
-       for the observability layer in §25.
+     → liveness/readiness check (DB reachable, last successful run per job_name from
+       `job_runs` — see §2 schema) for the observability layer in §25.
 ```
 
-**Reserved, not built in MVP** (per §16 — structure for it, don't implement yet):
+**Admin (owner-only — spec §15/§16; every route below requires a valid admin session)**
 ```
-POST /api/v1/auth/register
-POST /api/v1/auth/login
-GET  /api/v1/auth/me
+POST /api/v1/admin/login
+     → body: { password }. Compares against the single admin credential in the
+       ADMIN_PASSWORD env var (constant-time compare, never logged). On success,
+       issues a short-lived signed session token (JWT, signed with an ADMIN_JWT_SECRET
+       env var; no server-side session table needed — stateless, verified by expiry +
+       signature) set as an httpOnly cookie. This is the entire auth system (§16) —
+       no registration, no per-user accounts.
+
+GET  /api/v1/admin/challengers/pending
+     → every model_versions row with status='challenger' awaiting a decision, each
+       with its own metrics (JSONB) alongside the current champion's metrics for
+       side-by-side comparison, and its feature_set (news-free vs. news-inclusive,
+       §12) so both lineages are distinguishable in the same list.
+
+POST /api/v1/admin/challengers/{id}/approve
+     → promotes this model_version to champion: sets status='champion',
+       promoted_at=now(); the previous champion's status flips to 'retired'.
+       Application-layer transaction, never two simultaneous champions.
+
+POST /api/v1/admin/challengers/{id}/reject
+     → sets status='retired' without promotion. Row is kept (never deleted) for
+       audit/reproducibility, per §17.
+
+GET  /api/v1/admin/jobs
+     → one row per job_name from `job_runs`: last started_at/finished_at/status,
+       for the "Job health" admin panel card (§15).
+
+GET  /api/v1/admin/alerts?limit=50&unacknowledged_only=true
+     → `data_quality_alerts` rows, newest first, for the "Data quality alerts" card
+       (§15) — provider errors (e.g. an FMP 402 on a given ticker), missing data,
+       other anomalies.
+
+POST /api/v1/admin/alerts/{id}/acknowledge
+     → marks an alert reviewed (sets acknowledged_at); does not delete it.
+
+GET  /api/v1/admin/news-rollout-progress
+     → real news coverage over the trailing 60-trading-day window: days covered,
+       percentage, the 80%-over-60-days threshold, and (once estimable) a projected
+       date the threshold will be met at the current coverage rate — backs the
+       "News-feature rollout progress" admin panel card (§15). Once the threshold is
+       met this endpoint reports eligible:true and the card is no longer shown.
+
+POST /api/v1/admin/credit-topups
+     → body: { amount_usd, topped_up_at, note? }. Records a manual top-up of the
+       Anthropic API's prepaid balance (there is no "current balance" endpoint to
+       read this from automatically — see `api_credit_topups` below).
+
+GET  /api/v1/admin/credit-status
+     → estimated remaining balance (sum of `api_credit_topups.amount_usd` minus
+       cumulative LLM spend logged per §5's job_runs.metadata convention, below),
+       trailing daily/monthly burn rate, an estimated days-until-depleted figure,
+       and whether that figure is under the low-balance warning threshold (default
+       14 days) — backs the "LLM/API credit balance" admin panel card (§15). Crossing
+       the threshold also writes a `data_quality_alerts` row so it surfaces there too.
 ```
+
+Model version history (the admin panel's 4th card, §15) reuses the existing public
+`GET /api/v1/model/versions` / `GET /api/v1/model/versions/{id}` above — no separate
+admin endpoint needed, since model transparency is intentionally public (§14).
 
 ## 2. Database Schema
 
@@ -222,10 +277,13 @@ CREATE TABLE model_versions (
   id                BIGSERIAL PRIMARY KEY,
   version_label     TEXT NOT NULL UNIQUE,      -- e.g. 'v1.4.2'
   algorithm         TEXT NOT NULL,             -- 'linear' | 'random_forest' | 'xgboost' | ...
+  feature_set       TEXT NOT NULL,             -- 'price_fundamentals_macro' | 'price_fundamentals_macro_news' -- which challenger lineage (spec §12); lets two parallel lineages be tracked in the same table
   trained_at        TIMESTAMPTZ NOT NULL,
   status            TEXT NOT NULL,             -- 'champion' | 'challenger' | 'retired'
   promoted_at       TIMESTAMPTZ,
-  hyperparameters   JSONB,
+  hyperparameters   JSONB,                     -- includes recency_weight_halflife_days (default
+                                                -- 252, spec §12) alongside any algorithm-specific
+                                                -- hyperparameters (tree depth, regularization, etc.)
   metrics           JSONB                      -- validation/backtest metrics summary
 );
 
@@ -303,16 +361,52 @@ CREATE TABLE prediction_results (
 );
 
 -- ─────────────────────────────────────────────────────────────
--- Users (structure only — auth not implemented in MVP, §16)
+-- Admin observability (backs the admin panel, spec §15 — no `users` table:
+-- the product has no accounts at all, §16; the single admin credential lives
+-- only in an env var, never in this database)
 -- ─────────────────────────────────────────────────────────────
 
-CREATE TABLE users (
+CREATE TABLE job_runs (
   id             BIGSERIAL PRIMARY KEY,
-  email          TEXT NOT NULL UNIQUE,
-  password_hash  TEXT,
-  tier           TEXT NOT NULL DEFAULT 'free',  -- 'free' | 'pro'
+  job_name       TEXT NOT NULL,        -- 'news_ingestion' | 'market_data_ingestion' |
+                                        -- 'feature_generation' | 'prediction_generation' |
+                                        -- 'result_evaluation' | 'weekly_training' | 'model_evaluation' |
+                                        -- 'champion_performance_check' | 'llm_credit_check' (spec §20)
+  started_at     TIMESTAMPTZ NOT NULL,
+  finished_at    TIMESTAMPTZ,
+  status         TEXT NOT NULL,        -- 'running' | 'success' | 'failed'
+  error_message  TEXT,
+  metadata       JSONB                 -- e.g. rows processed, tickers skipped; for job_name=
+                                        -- 'news_ingestion' also carries the LLM cost of that run
+                                        -- as {"llm_tokens_in": N, "llm_tokens_out": N, "llm_cost_usd": N}
+                                        -- (spec §5) -- this is what /api/v1/admin/credit-status
+                                        -- sums to compute cumulative spend, no separate usage table
+);
+CREATE INDEX idx_job_runs_name_started ON job_runs(job_name, started_at DESC);
+
+CREATE TABLE api_credit_topups (
+  id             BIGSERIAL PRIMARY KEY,
+  amount_usd     NUMERIC(10,2) NOT NULL,
+  topped_up_at   TIMESTAMPTZ NOT NULL,
+  note           TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE data_quality_alerts (
+  id               BIGSERIAL PRIMARY KEY,
+  job_run_id       BIGINT REFERENCES job_runs(id),  -- nullable: not every alert traces to one job run
+  severity         TEXT NOT NULL,      -- 'info' | 'warning' | 'error'
+  category         TEXT NOT NULL,      -- 'provider_error' | 'missing_data' | 'anomaly' |
+                                        -- 'llm_provider_error' (spec §5, detail distinguishes
+                                        -- insufficient_credit | rate_limited | provider_error) |
+                                        -- 'champion_performance_degraded' (spec §14) |
+                                        -- 'low_credit_balance' (spec §15) | ...
+  message          TEXT NOT NULL,      -- e.g. "FMP returned 402 for ticker XYZ, skipped"
+  detail           JSONB,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  acknowledged_at  TIMESTAMPTZ         -- NULL until reviewed in the admin panel
+);
+CREATE INDEX idx_dq_alerts_created ON data_quality_alerts(created_at DESC);
 ```
 
 **Design notes baked into the schema above:**

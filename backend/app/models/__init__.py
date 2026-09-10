@@ -1,7 +1,10 @@
+from app.models.api_credit_topup import ApiCreditTopup
 from app.models.company import Company
+from app.models.data_quality_alert import DataQualityAlert
 from app.models.feature_snapshot import FeatureSnapshot
 from app.models.filing import Filing
 from app.models.fundamentals import Fundamentals
+from app.models.job_run import JobRun
 from app.models.macro import MacroData
 from app.models.market_price import MarketPrice
 from app.models.model_version import ModelVersion
@@ -14,7 +17,6 @@ from app.models.prediction import (
 )
 from app.models.security import Security
 from app.models.training_run import TrainingRun
-from app.models.user import User
 
 __all__ = [
     "Company",
@@ -32,5 +34,7 @@ __all__ = [
     "Prediction",
     "PredictionNewsLink",
     "PredictionResult",
-    "User",
+    "JobRun",
+    "ApiCreditTopup",
+    "DataQualityAlert",
 ]
