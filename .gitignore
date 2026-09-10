@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Trained model artifacts (large binaries, reproducible from training_runs + model_versions)
+backend/ml_artifacts/
