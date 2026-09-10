@@ -1,8 +1,7 @@
 """CLI entrypoint: python -m app.jobs.ingest_macro
 
-Pulls the fixed macro series (spec §8) from FRED. See
-app/providers/macro/fred.py for the point-in-time-correctness caveat on
-historical vintages.
+Pulls the fixed macro series (spec §8) from FRED, including real point-in-time
+revision vintages — see app/providers/macro/fred.py for how.
 """
 
 import logging

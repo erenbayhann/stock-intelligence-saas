@@ -9,25 +9,36 @@ from app.providers.macro.fred import FREDMacroProvider, MacroObservation
 # Postgres caps bind parameters at 65535; 5 columns/row means ~13000 rows/statement.
 _MAX_ROWS_PER_STATEMENT = 10_000
 
+# How far back to look for observation_dates by default.
+_DEFAULT_OBSERVATION_WINDOW_DAYS = 730
+# How far back to look for revision vintages of those observations — must be
+# comfortably earlier than observation_start, or a series revised months
+# after the fact would have its very first vintage excluded.
+_VINTAGE_LOOKBACK_BUFFER_DAYS = 400
+
 
 def fetch_and_store_macro(
     db: Session,
     provider: FREDMacroProvider,
     series_ids: list[str],
     observation_start: date | None = None,
+    vintage_start: date | None = None,
 ) -> dict:
-    """Bounds to the trailing ~2 years by default — this job is for keeping
-    recent/live macro data current, not a full historical backfill (FRED
-    returns full history back to the 1960s for some series if unbounded,
-    which is both unnecessary here and would blow past Postgres's
-    bind-parameter limit in one statement). A true historical vintage
-    backfill is Phase 4's concern (see app/providers/macro/fred.py).
+    """Pulls real point-in-time vintages (spec §3/§4) — see
+    app/providers/macro/fred.py for why a wide realtime window is what makes
+    this correct instead of only ever capturing "today's" vintage. Bounded
+    to a configurable observation window by default (not unbounded — FRED
+    returns full history back to the 1960s for some series, which would
+    both be unnecessary here and blow past Postgres's bind-parameter limit
+    in one statement without the chunking below).
     """
     if observation_start is None:
-        observation_start = date.today() - timedelta(days=730)
+        observation_start = date.today() - timedelta(days=_DEFAULT_OBSERVATION_WINDOW_DAYS)
+    if vintage_start is None:
+        vintage_start = observation_start - timedelta(days=_VINTAGE_LOOKBACK_BUFFER_DAYS)
 
-    observations: list[MacroObservation] = provider.get_latest_observations(
-        series_ids, observation_start=observation_start
+    observations: list[MacroObservation] = provider.get_observations_with_vintages(
+        series_ids, observation_start=observation_start, vintage_start=vintage_start
     )
     if not observations:
         return {"observations_written": 0}

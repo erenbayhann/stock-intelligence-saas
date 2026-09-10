@@ -33,18 +33,18 @@ class MacroObservation:
 class FREDMacroProvider:
     """FRED (spec §4, MacroDataProvider) — real API, free key.
 
-    Point-in-time note: this pulls each series' *current* vintage (FRED's
-    default `output_type=1`) and stamps every row with today as
-    `realtime_start` — correct for live/prospective use (a feature snapshot
-    built today only ever sees rows whose realtime_start <= today, which is
-    exactly what was just ingested). It is NOT a full historical-vintage
-    backfill: FRED's true revision history requires `output_type=2`, whose
-    response shape is a dynamic `{series_id}_{vintage_date}` column per
-    vintage rather than a fixed `value` field, and reconstructing exact
-    historical realtime windows from it is real added complexity deferred to
-    Phase 4 (historical dataset construction), where backtesting rigor
-    actually depends on it. Series like Treasury yields/Fed funds are never
-    revised in practice, so this gap mainly affects CPIAUCSL/UNRATE.
+    Point-in-time vintages, done correctly: pass a WIDE realtime_start/
+    realtime_end query window (rather than the default, which is today/today
+    and only returns the current vintage — the bug this replaced). FRED's
+    default output_type=1 then returns one row per (observation_date,
+    vintage) pair actually observed within that window, each carrying its
+    own real realtime_start/realtime_end — e.g. CPIAUCSL for Jan 2024 comes
+    back as three separate rows (first published 2024-02-13, revised
+    2025-02-12, revised again 2026-02-13), each with the correct value for
+    that vintage. This was verified against the live API before relying on
+    it: an earlier attempt used output_type=2, whose response is a dynamic
+    `{series_id}_{vintage_date}` column per vintage — real but needlessly
+    complex parsing next to this documented, standard approach.
     """
 
     def __init__(self, api_key: str, timeout: float = 30.0) -> None:
@@ -53,9 +53,18 @@ class FREDMacroProvider:
         self._api_key = api_key
         self._timeout = timeout
 
-    def get_latest_observations(
-        self, series_ids: list[str], observation_start: date | None = None
+    def get_observations_with_vintages(
+        self,
+        series_ids: list[str],
+        observation_start: date,
+        vintage_start: date,
     ) -> list[MacroObservation]:
+        """observation_start bounds which observation_dates are returned;
+        vintage_start bounds how far back into revision history to look —
+        pass something safely earlier than observation_start (a series
+        revised months after the fact would otherwise have its earliest
+        vintage excluded).
+        """
         today = date.today()
         observations: list[MacroObservation] = []
         with httpx.Client(timeout=self._timeout) as client:
@@ -65,9 +74,10 @@ class FREDMacroProvider:
                     "api_key": self._api_key,
                     "file_type": "json",
                     "sort_order": "asc",
+                    "observation_start": observation_start.isoformat(),
+                    "realtime_start": vintage_start.isoformat(),
+                    "realtime_end": today.isoformat(),
                 }
-                if observation_start:
-                    params["observation_start"] = observation_start.isoformat()
 
                 response = client.get(_BASE_URL, params=params)
                 response.raise_for_status()
@@ -81,8 +91,8 @@ class FREDMacroProvider:
                             series_id=series_id,
                             observation_date=date.fromisoformat(obs["date"]),
                             value=float(obs["value"]),
-                            realtime_start=today,
-                            realtime_end=date(9999, 12, 31),
+                            realtime_start=date.fromisoformat(obs["realtime_start"]),
+                            realtime_end=date.fromisoformat(obs["realtime_end"]),
                         )
                     )
         return observations
