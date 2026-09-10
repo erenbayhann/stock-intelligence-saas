@@ -1,6 +1,7 @@
 import logging
 import statistics
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -215,21 +216,58 @@ def compute_news_features(db: Session, security_id: int, as_of: datetime) -> dic
     }
 
 
+def historical_as_of_cutoffs(target_session_date: date) -> tuple[datetime, datetime]:
+    """The two point-in-time cutoffs needed to correctly rebuild a *historical*
+    pre-market snapshot for target_session_date, without leaking that day's
+    own outcome into its own features (spec §3/§11).
+
+    market_cutoff: strictly BEFORE target_session_date's own daily bar. We
+    only have regular-session daily bars (no granular pre-market ticks), and
+    a bar's `ts` is stamped at session start while its `close` is only truly
+    known at session end — so for a day already sitting fully-populated in
+    market_prices (the historical-replay case, unlike live use where today's
+    bar simply doesn't exist yet), a naive `ts <= as_of` on that same day
+    would leak today's own closing price into "pre-market" features. Using
+    one second before that day's midnight UTC excludes it cleanly regardless
+    of what time later that day is used for anything else.
+
+    intraday_cutoff: the actual pre-market lock moment on target_session_date
+    (~09:10 ET, spec §11's ~09:00-09:15 ET window) — fundamentals/macro/news
+    DO carry genuine intraday timestamps, and same-day pre-market information
+    is legitimately usable, so this is deliberately later than market_cutoff.
+    """
+    market_cutoff = datetime.combine(target_session_date, time.min, tzinfo=timezone.utc) - timedelta(seconds=1)
+    intraday_cutoff = datetime(
+        target_session_date.year, target_session_date.month, target_session_date.day, 9, 10,
+        tzinfo=ZoneInfo("America/New_York"),
+    ).astimezone(timezone.utc)
+    return market_cutoff, intraday_cutoff
+
+
 def generate_feature_snapshot(
     db: Session,
     security_id: int,
     sector: str | None,
-    as_of: datetime,
+    market_as_of: datetime,
+    intraday_as_of: datetime,
     benchmark_features: dict,
     benchmark_return_20d: float | None,
     sector_peer_returns_20d: dict[str, float],
+    macro_features: dict,
+    snapshot_as_of: datetime,
 ) -> FeatureSnapshot:
+    """market_as_of gates market-price lookups; intraday_as_of gates
+    fundamentals/macro/news (see historical_as_of_cutoffs for why these
+    differ). For live use, pass the same `datetime.now(timezone.utc)` for
+    both — today's own bar genuinely doesn't exist yet at that point in the
+    real ingestion timeline, so the distinction is a no-op there.
+    """
     features: dict = {}
-    features.update(compute_market_features(db, security_id, as_of))
+    features.update(compute_market_features(db, security_id, market_as_of))
     features.update(benchmark_features)
-    features.update(compute_fundamental_features(db, security_id, as_of))
-    features.update(compute_macro_features(db, as_of))
-    features.update(compute_news_features(db, security_id, as_of))
+    features.update(compute_fundamental_features(db, security_id, intraday_as_of))
+    features.update(macro_features)
+    features.update(compute_news_features(db, security_id, intraday_as_of))
 
     security_return_20d = features.get("return_20d")
     features["relative_strength_20d"] = (
@@ -242,6 +280,6 @@ def generate_feature_snapshot(
         security_return_20d - sector_avg if security_return_20d is not None and sector_avg is not None else None
     )
 
-    snapshot = FeatureSnapshot(security_id=security_id, as_of=as_of, features=features)
+    snapshot = FeatureSnapshot(security_id=security_id, as_of=snapshot_as_of, features=features)
     db.add(snapshot)
     return snapshot

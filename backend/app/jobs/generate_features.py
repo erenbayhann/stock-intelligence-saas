@@ -17,6 +17,7 @@ from app.models.company import Company
 from app.models.security import Security
 from app.services.feature_service import (
     compute_benchmark_features,
+    compute_macro_features,
     compute_sector_peer_returns_20d,
     generate_feature_snapshot,
 )
@@ -47,6 +48,7 @@ def main() -> None:
 
             benchmark_features, benchmark_return_20d = compute_benchmark_features(db, as_of)
             sector_peer_returns_20d = compute_sector_peer_returns_20d(db, as_of, universe_tickers)
+            macro_features = compute_macro_features(db, as_of)
 
             written = 0
             for security_id, ticker, sector in securities:
@@ -54,10 +56,13 @@ def main() -> None:
                     db,
                     security_id,
                     sector,
-                    as_of,
-                    benchmark_features,
-                    benchmark_return_20d,
-                    sector_peer_returns_20d,
+                    market_as_of=as_of,
+                    intraday_as_of=as_of,
+                    benchmark_features=benchmark_features,
+                    benchmark_return_20d=benchmark_return_20d,
+                    sector_peer_returns_20d=sector_peer_returns_20d,
+                    macro_features=macro_features,
+                    snapshot_as_of=as_of,
                 )
                 written += 1
             db.commit()

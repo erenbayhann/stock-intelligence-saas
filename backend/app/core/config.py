@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     test_database_url: str | None = None
 
     historical_backfill_years: int = 5
+    # Phase 4: how many trailing calendar days of historical feature
+    # snapshots + labels to (re)build per run. Bounded by design — data
+    # completeness (news especially) degrades further back anyway; a larger
+    # backfill is a config change, not a code change.
+    historical_dataset_days: int = 90
 
     sec_edgar_user_agent: str
 
