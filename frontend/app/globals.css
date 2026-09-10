@@ -48,6 +48,9 @@ body {
    Motion only — no color/typography/layout tokens change here. Every rule
    below is disabled under prefers-reduced-motion. */
 
+/* For standalone cards with real gaps between them (stat tiles, fundamentals
+   tiles) — a translateY lift here is safe because neighbors don't share a
+   border with the hovered element. */
 .hover-lift {
   transition: transform 160ms ease-out, box-shadow 160ms ease-out, background-color 160ms ease-out;
 }
@@ -63,6 +66,18 @@ body {
 }
 .hover-glow-neutral:hover {
   box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* For rows inside a flush, divider-separated list (a shared border-b/border-t
+   between siblings, often inside an overflow-hidden panel) — a translateY
+   lift there visually overlaps the neighboring row's divider and looks
+   broken/jittery. Rows get a plain background tint instead: no transform,
+   no layout shift, no border artifacts. */
+.row-hover {
+  transition: background-color 140ms ease-out;
+}
+.row-hover:hover {
+  background-color: rgba(255, 255, 255, 0.035);
 }
 
 /* Stat tiles: hover intensifies the tile's OWN color, never shifts hue
@@ -99,6 +114,15 @@ body {
   transform: translateX(120%);
 }
 
+.factor-tag-interactive {
+  transition: transform 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
+}
+.factor-tag-interactive:hover {
+  transform: translateY(-1px);
+  border-color: #3a3d45;
+  background-color: #1e2025;
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -130,12 +154,14 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .hover-lift,
+  .factor-tag-interactive,
   .stat-tile-interactive,
   .stat-tile-interactive::after {
     transition: none !important;
     animation: none !important;
   }
   .hover-lift:hover,
+  .factor-tag-interactive:hover,
   .stat-tile-interactive:hover {
     transform: none !important;
   }

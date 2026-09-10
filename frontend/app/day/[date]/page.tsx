@@ -54,19 +54,19 @@ export default async function DayDetailPage({
             Outcomes below reflect the official close.
           </div>
         </div>
-        <div className="rounded-2xl bg-blue text-blue-ink p-5">
-          <div className="font-display text-3xl leading-none">
+        <div className="rounded-2xl bg-blue text-blue-ink p-5 stat-tile-interactive tile-blue">
+          <div className="font-display text-3xl leading-none relative z-[1]">
             <SignedValue value={detail.benchmark_return} />
           </div>
-          <div className="font-sans font-bold text-[10.5px] uppercase tracking-wide mt-2 opacity-75">
+          <div className="font-sans font-bold text-[10.5px] uppercase tracking-wide mt-2 opacity-75 relative z-[1]">
             S&amp;P 500 that session
           </div>
         </div>
-        <div className="rounded-2xl bg-gradient-to-br from-green-grad-from to-green-grad-to text-hero-ink p-5">
-          <div className="font-display text-3xl leading-none">
+        <div className="rounded-2xl bg-gradient-to-br from-green-grad-from to-green-grad-to text-hero-ink p-5 stat-tile-interactive tile-green">
+          <div className="font-display text-3xl leading-none relative z-[1]">
             {dayHitRate !== null ? `${Math.round(dayHitRate * 100)}%` : "—"}
           </div>
-          <div className="font-sans font-bold text-[10.5px] uppercase tracking-wide mt-2 opacity-75">
+          <div className="font-sans font-bold text-[10.5px] uppercase tracking-wide mt-2 opacity-75 relative z-[1]">
             Hit rate that day
           </div>
         </div>
@@ -87,10 +87,8 @@ export default async function DayDetailPage({
             key={item.ticker}
             href={`/stocks/${item.ticker}`}
             className={
-              "grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 no-underline text-ink hover-lift " +
-              (item.direction_correct === true
-                ? "hover-glow-green border-l-2 border-l-green"
-                : "hover-glow-neutral border-l-2 border-l-transparent")
+              "grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 no-underline text-ink row-hover " +
+              (item.direction_correct === true ? "border-l-2 border-l-green" : "border-l-2 border-l-transparent")
             }
           >
             <div className="font-mono-tabular text-sm text-ink-dim">
@@ -129,7 +127,7 @@ export default async function DayDetailPage({
             {detail.notable_news.map((news) => (
               <div
                 key={news.id}
-                className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0 hover-lift rounded-lg px-2 -mx-2"
+                className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0 row-hover rounded-lg px-2 -mx-2"
               >
                 {news.title}
                 <div className="font-mono-tabular text-[11px] text-ink-faint mt-0.5">

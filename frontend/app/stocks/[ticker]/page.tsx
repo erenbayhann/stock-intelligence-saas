@@ -60,8 +60,8 @@ export default async function StockDetailPage({
           <PriceChart bars={prices?.bars ?? []} benchmarkBars={benchmarkPrices?.bars} />
         </div>
 
-        <div className="rounded-2xl bg-gradient-to-br from-green-grad-from to-green-grad-to text-hero-ink p-6 flex flex-col justify-between">
-          <div>
+        <div className="rounded-2xl bg-gradient-to-br from-green-grad-from to-green-grad-to text-hero-ink p-6 flex flex-col justify-between stat-tile-interactive tile-green">
+          <div className="relative z-[1]">
             {detail.current_rank !== null ? (
               <span className="font-display text-sm bg-hero-ink text-green px-2.5 py-1 rounded-full inline-block">
                 RANK #{detail.current_rank} TODAY
@@ -72,7 +72,7 @@ export default async function StockDetailPage({
               </span>
             )}
           </div>
-          <div>
+          <div className="relative z-[1]">
             <div className="font-display text-6xl leading-[0.85]">
               {detail.ai_score !== null ? <AiScoreCountUp value={detail.ai_score} /> : "—"}
             </div>
@@ -135,7 +135,7 @@ export default async function StockDetailPage({
           news.articles.slice(0, 5).map((article) => (
             <div
               key={article.id}
-              className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0 hover-lift rounded-lg px-2 -mx-2"
+              className="text-sm text-ink-news py-3.5 border-t border-row-border first:border-t-0 row-hover rounded-lg px-2 -mx-2"
             >
               <a href={article.url} target="_blank" rel="noreferrer">
                 {article.title}
@@ -167,7 +167,7 @@ export default async function StockDetailPage({
           predictions.predictions.map((p) => (
             <div
               key={p.target_session_date}
-              className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 hover-lift hover-glow-neutral"
+              className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 row-hover"
             >
               <div className="font-mono-tabular text-sm">{formatShortDate(p.target_session_date)}</div>
               <div className="font-mono-tabular text-sm">#{p.rank}</div>

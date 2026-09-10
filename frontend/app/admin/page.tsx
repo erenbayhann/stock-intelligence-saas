@@ -205,7 +205,7 @@ export default function AdminPage() {
           {jobs.map((job) => (
             <div
               key={job.job_name}
-              className="grid grid-cols-[1fr_100px_180px] items-center px-5 py-3 border-b border-row-border last:border-b-0 text-sm hover-lift hover-glow-neutral"
+              className="grid grid-cols-[1fr_100px_180px] items-center px-5 py-3 border-b border-row-border last:border-b-0 text-sm row-hover"
             >
               <div className="text-ink-news">{job.job_name}</div>
               <div
