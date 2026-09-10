@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 
+from app.api.v1.admin import router as admin_router
 from app.api.v1.health import router as health_router
+from app.api.v1.model import router as model_router
+from app.api.v1.performance import router as performance_router
+from app.api.v1.rankings import router as rankings_router
+from app.api.v1.stocks import router as stocks_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 
@@ -17,3 +22,8 @@ app = FastAPI(
 )
 
 app.include_router(health_router, prefix="/api/v1", tags=["operational"])
+app.include_router(rankings_router, prefix="/api/v1", tags=["rankings"])
+app.include_router(stocks_router, prefix="/api/v1", tags=["stocks"])
+app.include_router(performance_router, prefix="/api/v1", tags=["performance"])
+app.include_router(model_router, prefix="/api/v1", tags=["model"])
+app.include_router(admin_router, prefix="/api/v1", tags=["admin"])

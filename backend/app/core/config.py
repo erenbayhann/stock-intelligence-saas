@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     news_llm_model: str = "claude-haiku-4-5"
     news_lookback_hours: int = 24
 
+    # Admin panel auth (spec §16): the ONLY access-gated area in the whole
+    # product, since there are no user accounts at all. A single credential
+    # from an env var, not a users table — never anything more elaborate.
+    admin_password: str = ""
+    admin_jwt_secret: str = ""
+    admin_session_ttl_minutes: int = 60
+
 
 @lru_cache
 def get_settings() -> Settings:
