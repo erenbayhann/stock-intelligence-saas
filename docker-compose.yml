@@ -31,6 +31,19 @@ services:
       db:
         condition: service_healthy
 
+  scheduler:
+    build: ./backend
+    command: ["python", "-m", "app.scheduler"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stock_intel}:${POSTGRES_PASSWORD:-stock_intel}@db:5432/${POSTGRES_DB:-stock_intel}
+    volumes:
+      - ./backend:/srv
+    depends_on:
+      db:
+        condition: service_healthy
+
   frontend:
     build: ./frontend
     env_file:

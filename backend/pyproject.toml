@@ -23,6 +23,8 @@ dependencies = [
     "pyjwt>=2.9,<2.10",
     "xgboost>=2.1,<2.2",
     "lightgbm>=4.5,<4.6",
+    "apscheduler>=3.10,<3.11",
+    "tzdata>=2024.2",
 ]
 
 [project.optional-dependencies]

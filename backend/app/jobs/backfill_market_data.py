@@ -4,6 +4,14 @@ Pulls HISTORICAL_BACKFILL_YEARS of daily regular-session OHLCV bars from
 Alpaca for the active universe and idempotently upserts them into
 market_prices. Requires the universe to already be seeded
 (see app.jobs.seed_universe).
+
+The scheduler (app/scheduler.py, Phase 10) calls main(days_back=5) for its
+nightly EOD sync instead of the full multi-year range — data-ingestion-plan_1.md
+§2 sizes the nightly pull at "well under 20 calls," which a full historical
+re-fetch every night would blow through for no reason (the unique constraint
+makes it idempotent, but it would still hit Alpaca for 5 years x 100 tickers
+daily). 5 calendar days safely covers weekends/holidays and a single missed
+scheduler run without needing to track last-successful-run state.
 """
 
 import logging
@@ -21,7 +29,7 @@ logger = logging.getLogger(__name__)
 JOB_NAME = "market_data_ingestion"
 
 
-def main() -> None:
+def main(days_back: int | None = None) -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
 
@@ -30,7 +38,7 @@ def main() -> None:
     )
 
     end = date.today()
-    start = end - timedelta(days=365 * settings.historical_backfill_years)
+    start = end - timedelta(days=days_back if days_back is not None else 365 * settings.historical_backfill_years)
 
     db = SessionLocal()
     try:

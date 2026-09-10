@@ -65,3 +65,55 @@ Universe: S&P 100 (100 tickers). All schedule times are ET, matching the "Gece V
 - **This trade-off has a real cost, worth stating plainly:** per-ticker news freshness drops from "continuously polled every 10–15 min" to "7 discrete sweeps across the closed window + pre-market" (§3). That's an acceptable fit for this product specifically because only one prediction is locked per day near open — there's no intraday re-prediction that would need continuous news — but it does mean a fast-breaking story between two sweeps (up to ~2–3 hours apart overnight) won't be reflected until the next sweep picks it up.
 - Alpaca's free plan is IEX-only, not the full consolidated tape — expect its volume/price figures to under-represent true market-wide volume somewhat. Acceptable for MVP; note it in the methodology page (§15) so the "Limitations" page is honest about it.
 - GDELT and Marketaux both lack hard published rate-limit documentation for the free tier — the schedule above is deliberately conservative, and GDELT in particular is now carrying meaningfully more daily query volume (~85–90/day) than before this change; monitor for 429s in the observability layer (§25) and back off automatically if seen, and treat the first week or two of real usage as a live test of whether GDELT's actual (undocumented) ceiling holds up.
+
+## 6. Phase 10 amendments (2026-09-10): what the real scheduler actually runs
+
+`app/scheduler.py` (spec §26 item 10) implements the cadence above against
+what Phases 1-7 actually built, which diverged from this doc in three ways
+worth recording rather than silently reconciling:
+
+- **No extended-hours (pre-market/after-hours) bar ingestion exists.**
+  `AlpacaMarketDataProvider` only implements `get_daily_bars` (regular
+  session). The real Phase 3 feature set (`FEATURE_COLUMNS` in
+  `app/ml/dataset.py`) never included `pre_market_return`/
+  `after_hours_return`/`gap_percentage` — it was scoped to
+  `price_fundamentals_macro` using only regular-session data. Building an
+  extended-hours ingestion job now would schedule real API calls for
+  features nothing computes or trains on, so it's left out rather than
+  built speculatively. If a future feature-set revision adds those
+  features, this is the place to add the corresponding job.
+- **Fundamentals run full-universe daily via SEC EDGAR, not an FMP weekly
+  rotation.** §1 already notes SEC EDGAR became primary during Phase 3
+  (FMP's free tier 402s ~60% of the S&P 100); SEC EDGAR has "no hard
+  published cap for this volume" (§2), so `ingest_fundamentals.main()` just
+  processes every active security every run — no rotation bookkeeping
+  needed. Scheduled once/day (21:00 ET, the old rotation slot).
+- **The nightly market-data job pulls 5 days back, not the full
+  `HISTORICAL_BACKFILL_YEARS`.** `backfill_market_data.main()` gained an
+  optional `days_back` parameter for exactly this — the CLI's bare
+  `python -m app.jobs.backfill_market_data` (no args) is unchanged for the
+  original one-time/manual full backfill.
+
+Full real schedule (America/New_York, `misfire_grace_time` per job so a
+brief scheduler restart doesn't skip a run entirely):
+
+| Time (ET) | Job |
+|---|---|
+| 16:20 | `market_data_ingestion` (days_back=5) |
+| 16:25 | `result_evaluation` |
+| 16:30 | `champion_performance_check` |
+| 17:00, 19:30, 22:00, 00:30, 03:00, 06:00, 08:45 | `news_ingestion` (7 sweeps; each call already covers per-ticker + thematic/macro GDELT + Marketaux, per `app/jobs/ingest_news.py`) |
+| 20:30 | `macro_ingestion` |
+| 21:00 | `fundamentals_ingestion` (full universe) |
+| every 30 min | `filings_ingestion` |
+| 09:05 | `feature_generation` |
+| 09:15 | `prediction_generation` |
+| Sun 01:00 | `historical_dataset_construction` (gap-filling safety net before retrain) |
+| Sun 02:00 | `weekly_training` |
+| Sun 02:30 | `challenger_experiment` (measurement-only, spec §28 — never auto-promotes, §12) |
+
+Runs as its own `scheduler` docker-compose service (same backend image,
+`python -m app.scheduler`); the API process itself never schedules
+anything. Each job's own CLI module still owns its DB session and
+`job_runs` bookkeeping — the scheduler only calls `main()` on a timer and
+isolates one job's failure from every other job's future runs.
