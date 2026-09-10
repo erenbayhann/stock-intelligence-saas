@@ -5,9 +5,12 @@ from sqlalchemy import select
 
 from app.db.session import get_db
 from app.main import app
+from app.models.feature_snapshot import FeatureSnapshot
 from app.models.fundamentals import Fundamentals
 from app.models.market_price import MarketPrice
+from app.models.model_version import ModelVersion
 from app.models.news import NewsArticle, NewsCompanyLink
+from app.models.prediction import Prediction, PredictionResult, PredictionRun
 from app.models.security import Security
 from app.services.universe_service import seed_universe
 
@@ -147,3 +150,52 @@ def test_stock_predictions_returns_404_for_unknown_ticker(db_session):
     finally:
         app.dependency_overrides.clear()
     assert response.status_code == 404
+
+
+def test_stock_predictions_includes_vs_benchmark_once_evaluated(db_session):
+    security_id = _security_id(db_session)
+    mv = ModelVersion(
+        version_label="test-model", algorithm="ridge", feature_set="price_fundamentals_macro",
+        trained_at=datetime.now(timezone.utc), status="champion", hyperparameters={}, metrics={},
+    )
+    db_session.add(mv)
+    db_session.flush()
+
+    run = PredictionRun(
+        generated_at=datetime.now(timezone.utc), model_version_id=mv.id,
+        run_type="final", target_session_date=date.today(), status="completed",
+    )
+    db_session.add(run)
+    db_session.flush()
+
+    snapshot = FeatureSnapshot(security_id=security_id, as_of=datetime.now(timezone.utc), features={})
+    db_session.add(snapshot)
+    db_session.flush()
+
+    prediction = Prediction(
+        prediction_run_id=run.id, security_id=security_id, rank=1, ai_score=91.0,
+        raw_predicted_excess_return=0.02, confidence="High", explanation="test",
+        feature_snapshot_id=snapshot.id, price_at_prediction=100.0,
+    )
+    db_session.add(prediction)
+    db_session.flush()
+
+    db_session.add(PredictionResult(
+        prediction_id=prediction.id, actual_return=0.03, benchmark_return=0.01,
+        actual_excess_return=0.02, prediction_error=0.0, direction_correct=True,
+        evaluated_at=datetime.now(timezone.utc),
+    ))
+    db_session.commit()
+
+    client = _client(db_session)
+    try:
+        response = client.get("/api/v1/stocks/AAPL/predictions")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    predictions = response.json()["predictions"]
+    assert len(predictions) == 1
+    assert predictions[0]["actual_return"] == 0.03
+    assert predictions[0]["vs_benchmark"] == 0.02
+    assert predictions[0]["direction_correct"] is True

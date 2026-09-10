@@ -48,10 +48,19 @@ class RankingDetailResponse(BaseModel):
     notable_news: list[NewsRef] = []
 
 
+class RankingHistoryTopPick(BaseModel):
+    ticker: str
+    ai_score: float
+    actual_return: float | None = None
+    vs_benchmark: float | None = None
+    direction_correct: bool | None = None
+
+
 class RankingHistoryItem(BaseModel):
     target_session_date: date
     hit_rate: float | None
     mean_excess_return: float | None
+    top_pick: RankingHistoryTopPick | None = None
 
 
 class RankingHistoryResponse(BaseModel):

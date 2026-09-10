@@ -146,9 +146,27 @@ def get_ranking_history(db: Session, limit: int = 7, before: date | None = None)
             hit_rate = sum(1 for r in results if r.direction_correct) / len(results)
             mean_excess_return = sum(float(r.actual_excess_return) for r in results) / len(results)
 
+        top_pick_row = db.execute(
+            select(Prediction, Security.ticker, PredictionResult)
+            .join(Security, Prediction.security_id == Security.id)
+            .outerjoin(PredictionResult, PredictionResult.prediction_id == Prediction.id)
+            .where(Prediction.prediction_run_id == run.id, Prediction.rank == 1)
+        ).first()
+        top_pick = None
+        if top_pick_row is not None:
+            prediction, ticker, result = top_pick_row
+            top_pick = {
+                "ticker": ticker,
+                "ai_score": float(prediction.ai_score),
+                "actual_return": float(result.actual_return) if result and result.actual_return is not None else None,
+                "vs_benchmark": float(result.actual_excess_return) if result and result.actual_excess_return is not None else None,
+                "direction_correct": result.direction_correct if result else None,
+            }
+
         items.append({
             "target_session_date": run.target_session_date,
             "hit_rate": hit_rate,
             "mean_excess_return": mean_excess_return,
+            "top_pick": top_pick,
         })
     return items

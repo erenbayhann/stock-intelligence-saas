@@ -154,6 +154,7 @@ def get_stock_predictions(db: Session, ticker: str, limit: int = 30) -> dict | N
                 "ai_score": float(prediction.ai_score),
                 "confidence": prediction.confidence,
                 "actual_return": float(result.actual_return) if result and result.actual_return is not None else None,
+                "vs_benchmark": float(result.actual_excess_return) if result and result.actual_excess_return is not None else None,
                 "direction_correct": result.direction_correct if result else None,
             }
             for prediction, result, target_session_date in rows

@@ -25,6 +25,13 @@ GET  /api/v1/rankings/history?limit=7&before={date}
        nav) — each entry is a lightweight summary (date, hit rate that day, avg excess
        return that day), not the full ranking. Use this to populate the list; fetch
        /rankings/{date} for the detail view when one is opened.
+       Amended during Phase 9 (frontend): also includes the day's #1 pick
+       (ticker, ai_score, actual_return, direction_correct, only populated once
+       evaluated) — the approved Main dashboard mockup's "Last 7 Days" table
+       reads at a glance (date/pick/score/actual/result), which the original
+       aggregate-only shape couldn't support. Still one extra column on an
+       existing per-day join, not a second query per row, so the "lightweight
+       summary, not the full ranking" intent is unchanged.
 ```
 
 **Stocks**
@@ -41,9 +48,10 @@ GET  /api/v1/stocks/{ticker}/news?limit=20
      → recent news_articles linked to this security, newest first.
 
 GET  /api/v1/stocks/{ticker}/predictions?limit=30
-     → this ticker's own history of past predictions + outcomes (only appears when
-       the ticker was actually in the top 5 that day — most days it won't have an
-       entry, which is expected and correct, not a bug).
+     → this ticker's own history of past predictions + outcomes (rank, ai_score,
+       confidence, actual_return, vs_benchmark, direction_correct once evaluated;
+       only appears when the ticker was actually in the top 5 that day — most
+       days it won't have an entry, which is expected and correct, not a bug).
 ```
 
 **Performance / transparency**

@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/* Design tokens — docs/ai-stock-ranking-mvp-spec.md §19. This product commits
+   to one dark "prediction-market instrument panel" look, not a system-adaptive
+   theme, so these are the only palette values that exist. */
+@theme {
+  --color-bg: #070707;
+  --color-panel: #111214;
+  --color-panel-border: #24262a;
+  --color-row-border: #1b1c1f;
+
+  --color-ink: #f4f5f6;
+  --color-ink-soft: #9195a0;
+  --color-ink-faint: #6c707b;
+  --color-ink-dim: #55585f;
+  --color-ink-news: #d7d9de;
+
+  --color-green: #12e28a;
+  --color-green-soft: #5cf0b3;
+  --color-green-grad-from: #17f095;
+  --color-green-grad-to: #0bae6c;
+  --color-hero-ink: #06120c;
+
+  --color-blue: #2f5bff;
+  --color-blue-ink: #eaf0ff;
+
+  --color-negative: #ff6b5e;
+  --color-white-card: #ffffff;
+  --color-white-card-ink: #101114;
+
+  --font-display: "Archivo Black", "Archivo", "Segoe UI", sans-serif;
+  --font-sans: "Archivo", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

@@ -154,6 +154,10 @@ def test_rankings_history_returns_items_most_recent_first(db_session):
     body = response.json()
     assert len(body["items"]) == 1
     assert body["items"][0]["target_session_date"] == "2026-01-01"
+    assert body["items"][0]["top_pick"]["ticker"] == "AAPL"
+    assert body["items"][0]["top_pick"]["ai_score"] == 88.0
+    assert body["items"][0]["top_pick"]["actual_return"] is None
+    assert body["items"][0]["top_pick"]["vs_benchmark"] is None
 
 
 def test_rankings_history_route_registered_before_parameterized_date_route(db_session):

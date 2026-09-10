@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     admin_jwt_secret: str = ""
     admin_session_ttl_minutes: int = 60
 
+    # Phase 9: the frontend calls /admin/* directly from the browser (login
+    # form + subsequent cookie-authenticated actions), which needs CORS with
+    # credentials enabled for that one trusted origin — every other route is
+    # fetched server-side from the Next.js server, which never hits CORS.
+    frontend_origin: str = "http://localhost:3000"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -60,6 +60,7 @@ class StockPredictionItem(BaseModel):
     ai_score: float
     confidence: str
     actual_return: float | None = None
+    vs_benchmark: float | None = None
     direction_correct: bool | None = None
 
 
