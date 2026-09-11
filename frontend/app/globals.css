@@ -123,6 +123,48 @@ body {
   background-color: #1e2025;
 }
 
+/* Hyperion is one of Saturn's moons — a thin, tilted ring sweeps into view
+   around the logo mark on hover. ::before draws the ring behind the icon,
+   ::after clips to just its bottom arc and paints in front, so the ring
+   reads as actually encircling the mark rather than sitting flat behind it.
+   Hover-gated only — nothing here runs on page load or idles once the
+   pointer leaves. */
+.logo-icon-wrap {
+  position: relative;
+  isolation: isolate;
+}
+.logo-icon-wrap::before,
+.logo-icon-wrap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 260%;
+  height: 82%;
+  border: 1.5px solid #5cf0b3;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-20deg) scale(0.75, 0.3);
+  transition: opacity 260ms ease-out, transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.logo-icon-wrap::after {
+  clip-path: inset(50% 0 0 0);
+  border-color: #8ff5c9;
+}
+.logo-lockup:hover .logo-icon-wrap::before,
+.logo-lockup:hover .logo-icon-wrap::after {
+  opacity: 0.85;
+  transform: translate(-50%, -50%) rotate(-20deg) scale(1, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-icon-wrap::before,
+  .logo-icon-wrap::after {
+    transition: none !important;
+  }
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
