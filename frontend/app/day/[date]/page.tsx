@@ -37,7 +37,7 @@ export default async function DayDetailPage({
       <div className="flex items-end justify-between mb-1.5">
         <div className="font-display text-3xl tracking-tight">{formatLongDate(detail.target_session_date)}</div>
         <div className="font-mono-tabular text-xs text-ink-faint">
-          Generated {formatDateTimeEt(detail.generated_at)} &middot; Model {detail.model_version}
+          Generated {formatDateTimeEt(detail.generated_at)}
         </div>
       </div>
       <div className="text-[10.5px] font-bold uppercase tracking-widest text-ink-soft">

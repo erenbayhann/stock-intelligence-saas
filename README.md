@@ -1,7 +1,7 @@
-# stock-intelligence-saas
-AI-powered stock intelligence platform that ranks equities using market data, news, fundamentals, and machine learning.
+# Stock Hyperion
+AI-powered stock ranking platform that ranks S&P 100 equities using market data, news, fundamentals, and machine learning. (Repo/working name: `stock-intelligence-saas`.)
 
-See `docs/ai-stock-ranking-mvp-spec.md` for the full product spec, `docs/data-ingestion-plan.md` for provider/schedule details, and `docs/api-and-schema-plan.md` for the API surface and database schema.
+See `docs/ai-stock-ranking-mvp-spec.md` for the full product spec, `docs/data-ingestion-plan_1.md` for provider/schedule details, and `docs/api-and-schema-plan.md` for the API surface and database schema.
 
 ## Running (Phase 1)
 

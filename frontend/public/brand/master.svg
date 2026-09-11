@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#111214"/>
+  <g transform="translate(106,106) scale(3)">
+    <!-- bar 1: green, short -->
+    <line x1="26" y1="36" x2="26" y2="78" stroke="#12E28A" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="20" y="46" width="12" height="26" rx="6" fill="#12E28A"/>
+
+    <!-- bar 2: green, medium -->
+    <line x1="50" y1="18" x2="50" y2="78" stroke="#12E28A" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="44" y="30" width="12" height="42" rx="6" fill="#12E28A"/>
+
+    <!-- bar 3: blue, tall -->
+    <line x1="74" y1="8" x2="74" y2="78" stroke="#2F5BFF" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="68" y="16" width="12" height="58" rx="6" fill="#2F5BFF"/>
+  </g>
+</svg>

@@ -1,5 +1,5 @@
 [project]
-name = "stock-intelligence-backend"
+name = "stock-hyperion-backend"
 version = "0.1.0"
 description = "AI stock ranking research platform — backend"
 requires-python = ">=3.12"

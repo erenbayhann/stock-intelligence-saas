@@ -14,7 +14,7 @@ settings = get_settings()
 configure_logging(settings.log_level)
 
 app = FastAPI(
-    title="Stock Intelligence & Ranking API",
+    title="Stock Hyperion API",
     description=(
         "AI-powered research and decision-support platform for the S&P 100 "
         "universe. Not a trading bot; never gives personalized investment advice."

@@ -1,8 +1,8 @@
-# Frontend — AI Equity Rankings dashboard
+# Frontend — Stock Hyperion dashboard
 
-Next.js (App Router) + TypeScript + Tailwind CSS v4 frontend for the
-stock-intelligence-saas rankings dashboard (spec §19/§26 Phase 9). Three
-public pages built from the approved design mockups in `docs/design/`:
+Next.js (App Router) + TypeScript + Tailwind CSS v4 frontend for Stock
+Hyperion's rankings dashboard (spec §19/§26 Phase 9). Three public pages
+built from the approved design mockups in `docs/design/`:
 
 - `/` — Main dashboard (latest ranking, last 7 days, 7-day stat tiles)
 - `/day/[date]` — a specific past day's full detail + outcome

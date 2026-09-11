@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PUBLIC_API_BASE } from "@/lib/api";
 import { Skeleton } from "@/components/Skeleton";
+import { Logo } from "@/components/Logo";
 
 interface JobHealthItem {
   job_name: string;
@@ -154,6 +155,9 @@ export default function AdminPage() {
   if (authed === "checking") {
     return (
       <div className="max-w-sm mx-auto mt-16">
+        <div className="flex justify-center mb-6">
+          <Logo iconSize={32} />
+        </div>
         <Skeleton className="h-3 w-20 mx-auto mb-4" />
         <Skeleton className="h-40 rounded-2xl" />
       </div>
@@ -163,6 +167,9 @@ export default function AdminPage() {
   if (authed === "anon") {
     return (
       <div className="max-w-sm mx-auto mt-16">
+        <div className="flex justify-center mb-6">
+          <Logo iconSize={32} />
+        </div>
         <div className="text-[10.5px] font-bold uppercase tracking-widest text-ink-soft mb-4 text-center">
           Admin
         </div>

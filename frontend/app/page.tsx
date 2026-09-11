@@ -40,7 +40,7 @@ export default async function DashboardPage() {
           US Equities &middot; S&amp;P 100
         </div>
         <div className="font-mono-tabular text-xs text-ink-faint">
-          {formatDateTimeEt(ranking.generated_at)} &middot; Model {ranking.model_version}
+          {formatDateTimeEt(ranking.generated_at)}
         </div>
       </div>
 

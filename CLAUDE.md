@@ -1,4 +1,4 @@
-# Project rules — stock-intelligence-saas
+# Project rules — Stock Hyperion (repo: stock-intelligence-saas)
 
 These rules are durable and apply to every session working in this repo.
 

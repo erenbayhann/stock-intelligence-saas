@@ -1,5 +1,6 @@
-# AI Stock Intelligence & Ranking Platform — Full MVP Specification
+# Stock Hyperion — Full MVP Specification
 
+**Product name:** Stock Hyperion (finalized 2026-09-11; earlier planning/working title was "AI Stock Intelligence & Ranking Platform" — the repo directory name `stock-intelligence-saas` is unchanged).
 **Status:** Planning complete, ready for Phase 1 implementation.
 **Scope:** US equities, S&P 100 universe initially, architected for later expansion to S&P 500 / other markets.
 **Not a trading bot.** This is a research and decision-support platform. It never executes trades and never gives personalized investment advice.
