@@ -4,8 +4,9 @@ import { Logo } from "@/components/Logo";
 import "./globals.css";
 
 const SITE_NAME = "Stock Hyperion";
+const SITE_TAGLINE = "AI-Powered Equity Rankings";
 const SITE_DESCRIPTION =
-  "Model-generated research signal for the S&P 100 universe. Not investment advice, not a guarantee of future returns.";
+  "Stock Hyperion — AI-powered equity rankings for the S&P 100. Model-generated research signal, not investment advice, not a guarantee of future returns.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
@@ -59,6 +60,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
             <Link href="/" className="no-underline">
               <Logo />
+              <div className="text-[10px] font-bold uppercase tracking-widest text-ink-faint mt-1 ml-9">
+                {SITE_TAGLINE}
+              </div>
             </Link>
             <nav className="font-mono-tabular text-xs text-ink-faint flex items-center gap-5">
               <Link href="/" className="hover:text-ink-soft no-underline">
