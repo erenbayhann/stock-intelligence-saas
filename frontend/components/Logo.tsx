@@ -46,10 +46,8 @@ export function Logo({
   const fontSize = textSize ?? Math.round(iconSize * 0.64);
 
   return (
-    <span className={`logo-lockup inline-flex items-center gap-2 ${className}`} role="img" aria-label="Stock Hyperion">
-      <span className="logo-icon-wrap inline-flex">
-        <LogoIcon size={iconSize} />
-      </span>
+    <span className={`inline-flex items-center gap-2 ${className}`} role="img" aria-label="Stock Hyperion">
+      <LogoIcon size={iconSize} />
       <span
         style={{
           fontFamily: "var(--font-display)",
