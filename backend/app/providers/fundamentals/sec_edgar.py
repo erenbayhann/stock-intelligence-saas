@@ -14,7 +14,20 @@ _BASE_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 # (EBITDA has no single tag) is deliberately left out (see
 # app/services/fundamentals_service.py for what's derived from these).
 _FLOW_TAG_ALIASES: dict[str, list[str]] = {
-    "revenue": ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet"],
+    # Banks (JPM, GS, MS, WFC, C, ...) tag quarterly revenue under
+    # "RevenuesNetOfInterestExpense", not "Revenues" (which they only tag
+    # annually) — confirmed against real JPM/GS EDGAR data. Utilities (DUK,
+    # NEE, ...) similarly use "RegulatedAndUnregulatedOperatingRevenue".
+    # Without these, revenue/derived ratios were silently null for the
+    # entire financials/utilities sector subset of the S&P 100.
+    "revenue": [
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "SalesRevenueNet",
+        "RevenuesNetOfInterestExpense",
+        "RegulatedAndUnregulatedOperatingRevenue",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+    ],
     "net_income": ["NetIncomeLoss"],
     "eps_diluted": ["EarningsPerShareDiluted"],
     "operating_income": ["OperatingIncomeLoss"],
