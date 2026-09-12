@@ -17,6 +17,7 @@ from app.core.logging import configure_logging
 from app.db.session import SessionLocal
 from app.models.security import Security
 from app.providers.llm.news_extractor import ClaudeNewsExtractor, estimate_cost_usd
+from app.providers.news.alpha_vantage import AlphaVantageNewsProvider
 from app.providers.news.base import RawArticle
 from app.providers.news.gdelt import GDELTNewsProvider
 from app.providers.news.marketaux import MarketauxNewsProvider
@@ -95,6 +96,27 @@ def main() -> None:
                         severity="error",
                         category="provider_error",
                         message=f"Marketaux fetch failed: {exc}",
+                        job_run_id=job_run.id,
+                    )
+
+            if settings.alpha_vantage_api_key:
+                alpha_vantage = AlphaVantageNewsProvider(api_key=settings.alpha_vantage_api_key)
+                try:
+                    all_articles.extend(alpha_vantage.fetch_articles(since, tickers=ticker_phrases))
+                except Exception as exc:
+                    record_alert(
+                        db,
+                        severity="error",
+                        category="provider_error",
+                        message=f"Alpha Vantage fetch failed: {exc}",
+                        job_run_id=job_run.id,
+                    )
+                if alpha_vantage.last_rate_limited:
+                    record_alert(
+                        db,
+                        severity="warning",
+                        category="provider_error",
+                        message="Alpha Vantage NEWS_SENTIMENT rate-limited (daily/per-second free-tier cap) — some or all batches returned no data",
                         job_run_id=job_run.id,
                     )
 

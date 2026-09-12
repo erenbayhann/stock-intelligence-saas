@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     fred_api_key: str = ""
     marketaux_api_key: str = ""
     alpha_vantage_api_key: str = ""
-    finnhub_api_key: str = ""
 
     # News extraction (spec §5): real Claude Haiku 4.5 via the Anthropic API,
     # not a heuristic — see docs/ai-stock-ranking-mvp-spec.md §5 for the

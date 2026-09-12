@@ -9,7 +9,7 @@ class RawArticle:
     Mirrors `news_articles` closely so normalization stays a straight mapping.
     """
 
-    source: str  # 'gdelt' | 'marketaux'
+    source: str  # 'gdelt' | 'marketaux' | 'alpha_vantage'
     title: str
     url: str
     published_time: datetime  # from the provider — NEVER the fetch/received time (spec §3)
