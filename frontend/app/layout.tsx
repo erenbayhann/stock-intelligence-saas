@@ -59,6 +59,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
             <Link href="/" className="no-underline">
               <Logo />
+              <div className="font-display text-[22px] tracking-tight text-ink mt-1">
+                AI EQUITY RANKINGS
+              </div>
             </Link>
             <nav className="font-mono-tabular text-xs text-ink-faint flex items-center gap-5">
               <Link href="/" className="hover:text-ink-soft no-underline">
