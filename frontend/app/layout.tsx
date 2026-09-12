@@ -59,9 +59,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
             <Link href="/" className="no-underline">
               <Logo />
-              <div className="font-display text-[22px] tracking-tight text-ink mt-1">
-                AI EQUITY RANKINGS
-              </div>
             </Link>
             <nav className="font-mono-tabular text-xs text-ink-faint flex items-center gap-5">
               <Link href="/" className="hover:text-ink-soft no-underline">
@@ -76,7 +73,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </nav>
           </div>
         </header>
-        <main className="flex-1 mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+        <div className="mx-auto w-full max-w-6xl px-6 pt-8 mb-2">
+          <div className="font-display text-[22px] tracking-tight text-ink">
+            AI EQUITY RANKINGS
+          </div>
+        </div>
+        <main className="flex-1 mx-auto w-full max-w-6xl px-6 pb-8">{children}</main>
         <footer className="border-t border-panel-border">
           <div className="mx-auto max-w-6xl px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-3 text-xs text-ink-soft">
             <Logo iconSize={18} textSize={13} />
