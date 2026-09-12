@@ -73,12 +73,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </nav>
           </div>
         </header>
-        <div className="mx-auto w-full max-w-6xl px-6 pt-8 mb-2">
-          <div className="font-display text-[22px] tracking-tight text-ink">
-            AI EQUITY RANKINGS
-          </div>
-        </div>
-        <main className="flex-1 mx-auto w-full max-w-6xl px-6 pb-8">{children}</main>
+        <main className="flex-1 mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
         <footer className="border-t border-panel-border">
           <div className="mx-auto max-w-6xl px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-3 text-xs text-ink-soft">
             <Logo iconSize={18} textSize={13} />

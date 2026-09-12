@@ -35,6 +35,9 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      <div className="font-display text-[22px] tracking-tight text-ink mb-3">
+        AI EQUITY RANKINGS
+      </div>
       <div className="flex items-center justify-between mb-2">
         <div className="text-[10.5px] font-bold uppercase tracking-widest text-ink-soft">
           US Equities &middot; S&amp;P 100
