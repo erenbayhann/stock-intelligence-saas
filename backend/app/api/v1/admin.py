@@ -27,12 +27,20 @@ def admin_login(body: AdminLoginRequest, response: Response, settings: Settings 
         raise HTTPException(status_code=401, detail="Invalid admin password")
 
     token = create_admin_session_token(settings)
+    is_production = settings.app_env != "development"
     response.set_cookie(
         key=ADMIN_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=settings.app_env != "development",
-        samesite="lax",
+        secure=is_production,
+        # "lax" works for local dev (frontend/backend are same-site — same
+        # registrable domain, different ports only). In production they're
+        # on separate subdomains of a shared platform domain (e.g. Railway's
+        # *.up.railway.app), which browsers treat as cross-site — a "lax"
+        # cookie is never sent on the admin panel's cross-origin fetch(),
+        # silently breaking every authenticated request after login. "none"
+        # requires "secure", which is already true here.
+        samesite="none" if is_production else "lax",
         max_age=settings.admin_session_ttl_minutes * 60,
     )
     return {"status": "ok"}
