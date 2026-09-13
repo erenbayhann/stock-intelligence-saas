@@ -93,7 +93,9 @@ def store_articles(
                 continue
             db.add(
                 NewsCompanyLink(
-                    news_article_id=news_article.id, security_id=security_id, relevance=1.0
+                    news_article_id=news_article.id,
+                    security_id=security_id,
+                    relevance=article.ticker_relevance.get(ticker, 1.0),
                 )
             )
             links_created += 1

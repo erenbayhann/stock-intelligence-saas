@@ -86,3 +86,7 @@ def test_matched_tickers_come_from_provider_relevance_not_headline_substring():
     # even though the provider's own payload flagged it as relevant.
     assert set(articles[0].matched_tickers) == {"AAPL", "MSFT"}
     assert articles[0].published_time == datetime(2026, 9, 12, 9, 30, tzinfo=timezone.utc)
+    # AV's own per-ticker relevance_score is preserved, not discarded — this
+    # is real signal the provider computes that used to get thrown away
+    # (every NewsCompanyLink was hardcoded to relevance=1.0 regardless of source).
+    assert articles[0].ticker_relevance == {"AAPL": 0.9, "MSFT": 0.4}

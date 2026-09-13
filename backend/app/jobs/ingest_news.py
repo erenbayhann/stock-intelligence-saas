@@ -89,7 +89,7 @@ def main() -> None:
             if settings.marketaux_api_key:
                 try:
                     marketaux = MarketauxNewsProvider(api_key=settings.marketaux_api_key)
-                    all_articles.extend(marketaux.fetch_articles(since))
+                    all_articles.extend(marketaux.fetch_articles(since, tickers=ticker_phrases))
                 except Exception as exc:
                     record_alert(
                         db,

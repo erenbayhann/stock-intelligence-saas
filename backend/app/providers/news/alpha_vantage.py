@@ -101,11 +101,13 @@ class AlphaVantageNewsProvider(NewsProvider):
         return [self._to_raw_article(raw, set(batch)) for raw in payload.get("feed", [])]
 
     def _to_raw_article(self, raw: dict, requested_tickers: set[str]) -> RawArticle:
-        matched = tuple(
-            ts["ticker"]
-            for ts in raw.get("ticker_sentiment", [])
-            if ts["ticker"] in requested_tickers
-        )
+        relevant = [ts for ts in raw.get("ticker_sentiment", []) if ts["ticker"] in requested_tickers]
+        matched = tuple(ts["ticker"] for ts in relevant)
+        # AV's own per-ticker relevance_score (0-1) — real signal this provider
+        # computes and previously went unused; every link was hardcoded to 1.0
+        # regardless of source. GDELT/Marketaux have no equivalent, so they
+        # still default to 1.0 in store_articles.
+        ticker_relevance = {ts["ticker"]: float(ts["relevance_score"]) for ts in relevant}
         return RawArticle(
             source="alpha_vantage",
             source_article_id=raw.get("url"),  # AV has no separate id field; url is already the dedup key
@@ -114,6 +116,7 @@ class AlphaVantageNewsProvider(NewsProvider):
             published_time=_parse_time_published(raw.get("time_published")),
             raw_payload=raw,
             matched_tickers=matched,
+            ticker_relevance=ticker_relevance,
         )
 
 

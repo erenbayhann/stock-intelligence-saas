@@ -42,3 +42,28 @@ def test_paginates_past_the_free_tiers_3_article_per_response_cap():
     assert len(articles) == 6
     assert mock_client.get.call_count == 3  # stopped after the empty page, never reached max_pages_per_call=4
     assert mock_client.get.call_args_list[1].kwargs["params"]["page"] == 2
+
+
+def test_matches_tickers_by_title_post_hoc_without_scoping_the_query():
+    # Regression test: Marketaux articles used to go completely unlinked to
+    # any security (matched_tickers was always hardcoded to ()), which meant
+    # this source never contributed to any stock's news features. Matching
+    # is done locally against the returned headlines — the query itself
+    # stays broad/unscoped (no per-ticker request, no extra API cost).
+    provider = MarketauxNewsProvider(api_key="fake-key", max_pages_per_call=1)
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.__exit__.return_value = False
+    article = _article("a1")
+    article["title"] = "Apple Inc. unveils new product lineup"
+    mock_client.get.return_value = _page_response([article])
+
+    with patch("app.providers.news.marketaux.httpx.Client", return_value=mock_client):
+        articles = provider.fetch_articles(
+            datetime.now(timezone.utc), tickers={"AAPL": "Apple Inc.", "MSFT": "Microsoft"}
+        )
+
+    assert len(articles) == 1
+    assert articles[0].matched_tickers == ("AAPL",)
+    # The request itself is never ticker-scoped, regardless of what tickers were passed.
+    assert "tickers" not in mock_client.get.call_args_list[0].kwargs["params"]

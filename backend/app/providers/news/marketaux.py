@@ -3,16 +3,21 @@ from datetime import datetime, timezone
 import httpx
 from dateutil import parser as dateutil_parser
 
-from app.providers.news.base import NewsProvider, RawArticle
+from app.providers.news.base import NewsProvider, RawArticle, match_tickers_by_title
 
 _BASE_URL = "https://api.marketaux.com/v1/news/all"
 
 
 class MarketauxNewsProvider(NewsProvider):
-    """Marketaux (spec §4, secondary NewsProvider) — broad market-wide
-    sentiment context only, per data-ingestion-plan_1.md §1/§2: its 100
-    requests/day free-tier budget is too tight for per-ticker polling, so this
-    implementation only supports the broad (tickers=None) query mode.
+    """Marketaux (spec §4, secondary NewsProvider) — broad market-wide query
+    only, per data-ingestion-plan_1.md §1/§2: its 100 requests/day free-tier
+    budget is too tight for per-ticker polling, so the QUERY itself is never
+    ticker-scoped. `matched_tickers` is instead computed post-hoc against the
+    returned articles' headlines (same binary substring match GDELT uses) —
+    this costs no extra requests, since it's just local text matching against
+    a batch that was already fetched. Before this, every Marketaux article
+    went completely unlinked to any security (matched_tickers=() always),
+    which meant it never contributed to any stock's news features at all.
 
     The free plan caps `limit` at 3 articles per response regardless of what's
     requested (confirmed live: requesting limit=50 still returns exactly 3,
@@ -34,13 +39,6 @@ class MarketauxNewsProvider(NewsProvider):
     def fetch_articles(
         self, since: datetime, tickers: dict[str, str] | None = None
     ) -> list[RawArticle]:
-        if tickers:
-            raise ValueError(
-                "MarketauxNewsProvider only supports broad market-wide queries "
-                "(tickers=None) per data-ingestion-plan_1.md §1 — its free-tier "
-                "budget is too tight for per-ticker polling"
-            )
-
         articles: list[RawArticle] = []
         with httpx.Client(timeout=self._timeout) as client:
             for page in range(1, self._max_pages_per_call + 1):
@@ -59,17 +57,18 @@ class MarketauxNewsProvider(NewsProvider):
                 page_articles = payload.get("data", [])
                 if not page_articles:
                     break
-                articles.extend(self._to_raw_article(raw) for raw in page_articles)
+                articles.extend(self._to_raw_article(raw, tickers or {}) for raw in page_articles)
 
         return articles
 
-    def _to_raw_article(self, raw: dict) -> RawArticle:
+    def _to_raw_article(self, raw: dict, ticker_phrases: dict[str, str]) -> RawArticle:
+        title = raw.get("title", "")
         return RawArticle(
             source="marketaux",
             source_article_id=raw.get("uuid"),
-            title=raw.get("title", ""),
+            title=title,
             url=raw["url"],
             published_time=dateutil_parser.isoparse(raw["published_at"]).astimezone(timezone.utc),
             raw_payload=raw,
-            matched_tickers=(),  # broad query — not ticker-scoped (see class docstring)
+            matched_tickers=match_tickers_by_title(title, ticker_phrases),
         )

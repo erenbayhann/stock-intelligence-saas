@@ -5,7 +5,7 @@ import httpx
 from dateutil import parser as dateutil_parser
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.providers.news.base import NewsProvider, RawArticle
+from app.providers.news.base import NewsProvider, RawArticle, match_tickers_by_title
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +84,7 @@ class GDELTNewsProvider(NewsProvider):
 
         articles = []
         for raw in payload.get("articles", []):
-            title_lower = (raw.get("title") or "").lower()
-            matched = tuple(
-                ticker for ticker, phrase in batch.items() if phrase.lower() in title_lower
-            )
+            matched = match_tickers_by_title(raw.get("title") or "", batch)
             articles.append(self._to_raw_article(raw, matched_tickers=matched))
         return articles
 
