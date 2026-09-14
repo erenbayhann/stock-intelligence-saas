@@ -105,8 +105,8 @@ def get_stock_news(db: Session, ticker: str, limit: int = 20) -> dict | None:
     if security is None:
         return None
 
-    rows = db.scalars(
-        select(NewsArticle)
+    rows = db.execute(
+        select(NewsArticle, NewsCompanyLink)
         .join(NewsCompanyLink, NewsCompanyLink.news_article_id == NewsArticle.id)
         .where(NewsCompanyLink.security_id == security.id, NewsArticle.is_duplicate_of.is_(None))
         .order_by(NewsArticle.published_time.desc())
@@ -119,10 +119,13 @@ def get_stock_news(db: Session, ticker: str, limit: int = 20) -> dict | None:
             {
                 "id": a.id, "title": a.title, "url": a.url, "source": a.source,
                 "published_time": a.published_time,
-                "sentiment": float(a.sentiment) if a.sentiment is not None else None,
-                "event_category": a.event_category,
+                # sentiment/event_category live per-(article,ticker) on the
+                # link, not the article — the same story can read differently
+                # per company (spec §5, extended 2026-09-14).
+                "sentiment": float(link.sentiment) if link.sentiment is not None else None,
+                "event_category": link.event_category,
             }
-            for a in rows
+            for a, link in rows
         ],
     }
 

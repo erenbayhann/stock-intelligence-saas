@@ -187,8 +187,11 @@ def compute_news_features(db: Session, security_id: int, as_of: datetime) -> dic
     window_72h = as_of - timedelta(hours=72)
 
     articles_72h = db.execute(
-        select(NewsArticle.sentiment, NewsArticle.importance, NewsArticle.event_category, NewsArticle.published_time)
-        .join(NewsCompanyLink, NewsCompanyLink.news_article_id == NewsArticle.id)
+        select(
+            NewsCompanyLink.sentiment, NewsCompanyLink.importance, NewsCompanyLink.event_category,
+            NewsArticle.published_time,
+        )
+        .join(NewsArticle, NewsCompanyLink.news_article_id == NewsArticle.id)
         .where(
             NewsCompanyLink.security_id == security_id,
             NewsArticle.published_time <= as_of,

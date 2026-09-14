@@ -1,8 +1,9 @@
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -110,65 +111,111 @@ def store_articles(
     return {"inserted": inserted, "skipped_duplicate": skipped_duplicate, "links_created": links_created}
 
 
-def enrich_unprocessed_articles(
+def load_company_universe(db: Session) -> list[tuple[str, str, str | None]]:
+    """(ticker, company_name, sector) for every active security — the full
+    context classify_unprocessed_articles gives the LLM, so it can reason
+    about content/sector relevance instead of being limited to whatever a
+    literal company-name substring match already found upstream.
+    """
+    rows = db.execute(
+        select(Security.ticker, Company.name, Company.sector)
+        .join(Company, Security.company_id == Company.id)
+        .where(Security.is_active.is_(True))
+    ).all()
+    return [(ticker, name, sector) for ticker, name, sector in rows]
+
+
+def classify_unprocessed_articles(
     db: Session,
     extractor: ClaudeNewsExtractor,
     limit: int = 200,
     job_run_id: int | None = None,
 ) -> dict:
-    """Runs LLM extraction (spec §5) on articles that don't have it yet.
-    A failed extraction never crashes the job: the article keeps NULL
-    sentiment/event_category/importance, a data_quality_alerts row is logged,
-    and the loop continues (spec §5's LLM failure handling).
+    """Runs full-universe LLM classification (spec §5, extended 2026-09-14)
+    on articles that haven't been classified yet. Unlike the literal
+    company-name substring matching providers do at fetch time (see
+    app/providers/news/*), this sees every active ticker and can attach a
+    headline to companies it never names — a commodity-price move to its
+    producers, a regulatory change to its whole affected sector, etc.
+
+    A failed classification never crashes the job: the article's
+    classified_at stays NULL (so it's retried on a later run), a
+    data_quality_alerts row is logged, and the loop continues (spec §5's
+    LLM failure handling). Links from provider-level matching already exist
+    with relevance but NULL sentiment/category/importance — this upserts
+    those with real per-ticker values and can add further links the
+    substring match missed, never removes one.
     """
     articles = db.scalars(
         select(NewsArticle)
-        .where(NewsArticle.sentiment.is_(None), NewsArticle.is_duplicate_of.is_(None))
+        .where(NewsArticle.classified_at.is_(None), NewsArticle.is_duplicate_of.is_(None))
         .order_by(NewsArticle.published_time.desc())
         .limit(limit)
     ).all()
 
-    enriched = 0
+    universe = load_company_universe(db)
+    ticker_to_security_id = {
+        ticker: security_id
+        for ticker, security_id in db.execute(
+            select(Security.ticker, Security.id).where(Security.is_active.is_(True))
+        )
+    }
+
+    classified = 0
     failed = 0
+    links_created = 0
     tokens_in_total = 0
     tokens_out_total = 0
 
     for article in articles:
-        company_names = db.execute(
-            select(Company.name, Security.ticker)
-            .join(NewsCompanyLink, NewsCompanyLink.security_id == Security.id)
-            .join(Company, Security.company_id == Company.id)
-            .where(NewsCompanyLink.news_article_id == article.id)
-        ).first()
-        company_name, ticker = company_names if company_names else ("Unknown company", "")
-
         try:
-            extraction = extractor.extract(
-                title=article.title, source=article.source, company_name=company_name, ticker=ticker
-            )
+            result = extractor.classify(title=article.title, source=article.source, universe=universe)
         except LLMProviderError as exc:
             failed += 1
             record_alert(
                 db,
                 severity="error",
                 category="llm_provider_error",
-                message=f"LLM extraction failed for news_article {article.id}: {exc}",
+                message=f"LLM classification failed for news_article {article.id}: {exc}",
                 detail={"kind": exc.kind, "news_article_id": article.id},
                 job_run_id=job_run_id,
             )
             continue
 
-        article.sentiment = extraction.sentiment
-        article.event_category = extraction.event_category
-        article.importance = extraction.importance
+        for item in result.tickers:
+            security_id = ticker_to_security_id.get(item.ticker)
+            if security_id is None:
+                continue
+            stmt = insert(NewsCompanyLink).values(
+                news_article_id=article.id,
+                security_id=security_id,
+                relevance=item.relevance,
+                sentiment=item.sentiment,
+                event_category=item.event_category,
+                importance=item.importance,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["news_article_id", "security_id"],
+                set_={
+                    "relevance": stmt.excluded.relevance,
+                    "sentiment": stmt.excluded.sentiment,
+                    "event_category": stmt.excluded.event_category,
+                    "importance": stmt.excluded.importance,
+                },
+            )
+            db.execute(stmt)
+            links_created += 1
+
+        article.classified_at = datetime.now(timezone.utc)
         db.commit()
-        enriched += 1
-        tokens_in_total += extraction.tokens_in
-        tokens_out_total += extraction.tokens_out
+        classified += 1
+        tokens_in_total += result.tokens_in
+        tokens_out_total += result.tokens_out
 
     return {
-        "enriched": enriched,
+        "classified": classified,
         "failed": failed,
+        "llm_links_created": links_created,
         "llm_tokens_in": tokens_in_total,
         "llm_tokens_out": tokens_out_total,
     }

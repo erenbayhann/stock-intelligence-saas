@@ -143,23 +143,28 @@ def test_news_published_after_as_of_never_contributes(db_session):
         title="Old news",
         url="https://x.com/old",
         published_time=AS_OF - timedelta(hours=1),
-        sentiment=0.5,
-        importance=0.5,
-        event_category="Earnings",
     )
     future_article = NewsArticle(
         source="gdelt",
         title="Future news that must not leak backward",
         url="https://x.com/future",
         published_time=AS_OF + timedelta(hours=1),
-        sentiment=-0.9,  # if this leaked in, news_sentiment_24h would swing negative
-        importance=0.9,
-        event_category="Lawsuit",
     )
     db_session.add_all([old_article, future_article])
     db_session.flush()
-    db_session.add(NewsCompanyLink(news_article_id=old_article.id, security_id=security_id, relevance=1.0))
-    db_session.add(NewsCompanyLink(news_article_id=future_article.id, security_id=security_id, relevance=1.0))
+    db_session.add(
+        NewsCompanyLink(
+            news_article_id=old_article.id, security_id=security_id, relevance=1.0,
+            sentiment=0.5, importance=0.5, event_category="Earnings",
+        )
+    )
+    db_session.add(
+        NewsCompanyLink(
+            news_article_id=future_article.id, security_id=security_id, relevance=1.0,
+            # if this leaked in, news_sentiment_24h would swing negative
+            sentiment=-0.9, importance=0.9, event_category="Lawsuit",
+        )
+    )
     db_session.commit()
 
     features = compute_news_features(db_session, security_id, AS_OF)
@@ -178,8 +183,6 @@ def test_news_duplicate_articles_are_excluded_from_features(db_session):
         title="Original story",
         url="https://x.com/orig",
         published_time=AS_OF - timedelta(hours=2),
-        sentiment=0.6,
-        importance=0.6,
     )
     db_session.add(original)
     db_session.flush()
@@ -189,15 +192,21 @@ def test_news_duplicate_articles_are_excluded_from_features(db_session):
         title="Same story, different outlet",
         url="https://x.com/dup",
         published_time=AS_OF - timedelta(hours=1),
-        sentiment=0.6,
-        importance=0.6,
         is_duplicate_of=original.id,
     )
     db_session.add(duplicate)
     db_session.flush()
 
-    db_session.add(NewsCompanyLink(news_article_id=original.id, security_id=security_id, relevance=1.0))
-    db_session.add(NewsCompanyLink(news_article_id=duplicate.id, security_id=security_id, relevance=1.0))
+    db_session.add(
+        NewsCompanyLink(
+            news_article_id=original.id, security_id=security_id, relevance=1.0, sentiment=0.6, importance=0.6,
+        )
+    )
+    db_session.add(
+        NewsCompanyLink(
+            news_article_id=duplicate.id, security_id=security_id, relevance=1.0, sentiment=0.6, importance=0.6,
+        )
+    )
     db_session.commit()
 
     features = compute_news_features(db_session, security_id, AS_OF)

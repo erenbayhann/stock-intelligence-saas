@@ -25,7 +25,7 @@ from app.services.data_quality_service import record_alert
 from app.services.job_run_service import track_job_run
 from app.services.news_service import (
     build_ticker_search_phrases,
-    enrich_unprocessed_articles,
+    classify_unprocessed_articles,
     store_articles,
 )
 
@@ -125,20 +125,22 @@ def main() -> None:
             }
             store_result = store_articles(db, all_articles, ticker_to_security_id)
 
-            enrich_result = {"enriched": 0, "failed": 0, "llm_tokens_in": 0, "llm_tokens_out": 0}
+            classify_result = {
+                "classified": 0, "failed": 0, "llm_links_created": 0, "llm_tokens_in": 0, "llm_tokens_out": 0,
+            }
             if settings.anthropic_api_key:
                 extractor = ClaudeNewsExtractor(
                     api_key=settings.anthropic_api_key, model=settings.news_llm_model
                 )
-                enrich_result = enrich_unprocessed_articles(db, extractor, job_run_id=job_run.id)
+                classify_result = classify_unprocessed_articles(db, extractor, job_run_id=job_run.id)
 
             llm_cost_usd = estimate_cost_usd(
-                enrich_result["llm_tokens_in"], enrich_result["llm_tokens_out"]
+                classify_result["llm_tokens_in"], classify_result["llm_tokens_out"]
             )
             job_run.job_metadata = {
                 "articles_fetched": len(all_articles),
                 **store_result,
-                **enrich_result,
+                **classify_result,
                 "llm_cost_usd": round(llm_cost_usd, 6),
             }
             result = job_run.job_metadata

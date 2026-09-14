@@ -117,7 +117,7 @@ def test_stock_news_excludes_duplicates(db_session):
     security_id = _security_id(db_session)
     original = NewsArticle(
         source="marketaux", title="Apple launches new product", url="https://example.com/1",
-        published_time=datetime.now(timezone.utc), sentiment=0.4, event_category="product_launch",
+        published_time=datetime.now(timezone.utc),
     )
     db_session.add(original)
     db_session.flush()
@@ -127,7 +127,11 @@ def test_stock_news_excludes_duplicates(db_session):
     )
     db_session.add(duplicate)
     db_session.flush()
-    db_session.add(NewsCompanyLink(news_article_id=original.id, security_id=security_id))
+    db_session.add(
+        NewsCompanyLink(
+            news_article_id=original.id, security_id=security_id, sentiment=0.4, event_category="product_launch",
+        )
+    )
     db_session.add(NewsCompanyLink(news_article_id=duplicate.id, security_id=security_id))
     db_session.commit()
 

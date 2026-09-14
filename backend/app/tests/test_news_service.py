@@ -4,11 +4,11 @@ from sqlalchemy import select
 
 from app.models.news import NewsArticle, NewsCompanyLink
 from app.models.security import Security
-from app.providers.llm.news_extractor import LLMProviderError, NewsExtraction
+from app.providers.llm.news_extractor import ClassificationResult, LLMProviderError, TickerClassification
 from app.providers.news.base import RawArticle
 from app.services.news_service import (
     build_ticker_search_phrases,
-    enrich_unprocessed_articles,
+    classify_unprocessed_articles,
     store_articles,
 )
 from app.services.universe_service import seed_universe
@@ -82,32 +82,63 @@ def test_store_articles_is_idempotent_on_marketaux_uuid(db_session):
 
 
 class FakeExtractor:
-    def __init__(self, result: NewsExtraction | Exception):
+    def __init__(self, result: ClassificationResult | Exception):
         self._result = result
 
-    def extract(self, **kwargs):
+    def classify(self, **kwargs):
         if isinstance(self._result, Exception):
             raise self._result
         return self._result
 
 
-def test_enrich_unprocessed_articles_success(db_session):
+def test_classify_unprocessed_articles_success(db_session):
     seed_universe(db_session, SAMPLE_UNIVERSE)
     ticker_to_security_id = {s.ticker: s.id for s in db_session.scalars(select(Security))}
     store_articles(db_session, [_article("https://example.com/d", matched=("AAPL",))], ticker_to_security_id)
 
     extractor = FakeExtractor(
-        NewsExtraction(sentiment=0.6, event_category="Earnings", importance=0.8, tokens_in=50, tokens_out=20)
+        ClassificationResult(
+            tickers=(TickerClassification(ticker="AAPL", relevance=0.9, sentiment=0.6, event_category="Earnings", importance=0.8),),
+            tokens_in=50,
+            tokens_out=20,
+        )
     )
-    result = enrich_unprocessed_articles(db_session, extractor, limit=10)
+    result = classify_unprocessed_articles(db_session, extractor, limit=10)
 
-    assert result == {"enriched": 1, "failed": 0, "llm_tokens_in": 50, "llm_tokens_out": 20}
+    assert result == {"classified": 1, "failed": 0, "llm_links_created": 1, "llm_tokens_in": 50, "llm_tokens_out": 20}
     article = db_session.scalar(select(NewsArticle).where(NewsArticle.url == "https://example.com/d"))
-    assert article.event_category == "Earnings"
-    assert float(article.sentiment) == 0.6
+    assert article.classified_at is not None
+    link = db_session.scalar(select(NewsCompanyLink).where(NewsCompanyLink.news_article_id == article.id))
+    assert link.event_category == "Earnings"
+    assert float(link.sentiment) == 0.6
 
 
-def test_enrich_unprocessed_articles_logs_alert_on_llm_failure(db_session):
+def test_classify_unprocessed_articles_adds_sector_inferred_link_not_found_by_substring_match(db_session):
+    universe = SAMPLE_UNIVERSE + [
+        {"ticker": "XOM", "name": "Exxon Mobil Corp.", "sector": "Energy", "exchange": "NYSE", "cik": "0000034088"},
+    ]
+    seed_universe(db_session, universe)
+    ticker_to_security_id = {s.ticker: s.id for s in db_session.scalars(select(Security))}
+    # No provider matched any ticker — a pure macro/thematic headline (like
+    # GDELT's thematic sweep, which never sets matched_tickers).
+    store_articles(db_session, [_article("https://example.com/oil", matched=())], ticker_to_security_id)
+
+    extractor = FakeExtractor(
+        ClassificationResult(
+            tickers=(TickerClassification(ticker="XOM", relevance=0.8, sentiment=0.5, event_category="Macroeconomic exposure", importance=0.6),),
+            tokens_in=100,
+            tokens_out=30,
+        )
+    )
+    result = classify_unprocessed_articles(db_session, extractor, limit=10)
+
+    assert result["llm_links_created"] == 1
+    links = db_session.scalars(select(NewsCompanyLink)).all()
+    assert len(links) == 1
+    assert links[0].security_id == ticker_to_security_id["XOM"]
+
+
+def test_classify_unprocessed_articles_logs_alert_on_llm_failure(db_session):
     from app.models.data_quality_alert import DataQualityAlert
 
     seed_universe(db_session, SAMPLE_UNIVERSE)
@@ -115,12 +146,12 @@ def test_enrich_unprocessed_articles_logs_alert_on_llm_failure(db_session):
     store_articles(db_session, [_article("https://example.com/e", matched=("AAPL",))], ticker_to_security_id)
 
     extractor = FakeExtractor(LLMProviderError("rate_limited", "429"))
-    result = enrich_unprocessed_articles(db_session, extractor, limit=10)
+    result = classify_unprocessed_articles(db_session, extractor, limit=10)
 
-    assert result["enriched"] == 0
+    assert result["classified"] == 0
     assert result["failed"] == 1
     article = db_session.scalar(select(NewsArticle).where(NewsArticle.url == "https://example.com/e"))
-    assert article.sentiment is None  # NULL, not fabricated, per spec §5
+    assert article.classified_at is None  # not fabricated, retried on a later run, per spec §5
 
     alerts = db_session.scalars(select(DataQualityAlert)).all()
     assert len(alerts) == 1
