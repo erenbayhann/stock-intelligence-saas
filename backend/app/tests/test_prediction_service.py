@@ -1,7 +1,6 @@
 import random
 from datetime import date, datetime, timedelta, timezone
 
-import joblib
 import numpy as np
 import pandas as pd
 import pytest
@@ -11,6 +10,7 @@ from sklearn.pipeline import Pipeline
 from sqlalchemy import select
 
 from app.ml.dataset import FEATURE_COLUMNS
+from app.ml.train import serialize_pipeline
 from app.models.model_version import ModelVersion
 from app.models.prediction import Prediction, PredictionRun
 from app.models.security import Security
@@ -62,30 +62,26 @@ def _bar(security_id, d, close):
     )
 
 
-def _seed_champion(db_session, monkeypatch, tmp_path):
+def _seed_champion(db_session):
     rng = np.random.default_rng(1)
     X = pd.DataFrame(rng.normal(size=(50, len(FEATURE_COLUMNS))), columns=FEATURE_COLUMNS)
     y = rng.normal(size=50)
     pipeline = Pipeline([("impute", SimpleImputer(strategy="median")), ("model", RandomForestRegressor(n_estimators=10, random_state=0))])
     pipeline.fit(X, y)
 
-    monkeypatch.setattr("app.services.prediction_service.ARTIFACT_DIR", tmp_path)
-    version_label = "random_forest-test"
-    joblib.dump(pipeline, tmp_path / f"{version_label}.joblib")
-
     db_session.add(
         ModelVersion(
-            version_label=version_label, algorithm="random_forest", feature_set="price_fundamentals_macro",
+            version_label="random_forest-test", algorithm="random_forest", feature_set="price_fundamentals_macro",
             trained_at=datetime.now(timezone.utc), status="champion", promoted_at=datetime.now(timezone.utc),
-            hyperparameters={}, metrics={},
+            artifact=serialize_pipeline(pipeline), hyperparameters={}, metrics={},
         )
     )
     db_session.commit()
 
 
-def test_generate_final_prediction_run_creates_top5(db_session, monkeypatch, tmp_path):
+def test_generate_final_prediction_run_creates_top5(db_session):
     _seed_prices(db_session)
-    _seed_champion(db_session, monkeypatch, tmp_path)
+    _seed_champion(db_session)
 
     result = generate_final_prediction_run(db_session, set(TICKERS), target_session_date=date(2026, 1, 5))
 
@@ -106,9 +102,9 @@ def test_generate_final_prediction_run_creates_top5(db_session, monkeypatch, tmp
     assert run.target_session_date == date(2026, 1, 5)
 
 
-def test_generate_final_prediction_run_is_not_rerun_for_the_same_day(db_session, monkeypatch, tmp_path):
+def test_generate_final_prediction_run_is_not_rerun_for_the_same_day(db_session):
     _seed_prices(db_session)
-    _seed_champion(db_session, monkeypatch, tmp_path)
+    _seed_champion(db_session)
 
     generate_final_prediction_run(db_session, set(TICKERS), target_session_date=date(2026, 1, 5))
 

@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.ml.dataset import FEATURE_COLUMNS
-from app.ml.train import ARTIFACT_DIR, train_baseline_models
+from app.ml.train import train_baseline_models
 from app.models.feature_snapshot import FeatureSnapshot
 from app.models.market_price import MarketPrice
 from app.models.model_version import ModelVersion
@@ -30,9 +30,7 @@ def _trading_days(n: int) -> list[date]:
     return days
 
 
-def test_train_baseline_models_end_to_end(db_session, tmp_path, monkeypatch):
-    monkeypatch.setattr("app.ml.train.ARTIFACT_DIR", tmp_path)
-
+def test_train_baseline_models_end_to_end(db_session):
     seed_universe(db_session, SAMPLE_UNIVERSE)
     seed_benchmarks(db_session)
 
@@ -88,4 +86,5 @@ def test_train_baseline_models_end_to_end(db_session, tmp_path, monkeypatch):
     assert all(tr.resulting_model_version_id is not None for tr in training_runs)
 
     champion_label = next(r["version_label"] for r in results.values() if r["status"] == "champion")
-    assert (tmp_path / f"{champion_label}.joblib").exists()
+    champion_row = db_session.scalar(select(ModelVersion).where(ModelVersion.version_label == champion_label))
+    assert champion_row.artifact is not None

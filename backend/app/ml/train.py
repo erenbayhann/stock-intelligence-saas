@@ -1,6 +1,6 @@
+import io
 import logging
 from datetime import date, datetime, timezone
-from pathlib import Path
 
 import joblib
 import numpy as np
@@ -19,6 +19,22 @@ from app.models.training_run import TrainingRun
 
 logger = logging.getLogger(__name__)
 
+
+def serialize_pipeline(pipeline: Pipeline) -> bytes:
+    """joblib is the standard, efficient serializer for sklearn objects
+    (better than plain pickle for numpy-array-heavy estimators) — this just
+    targets an in-memory buffer instead of a file, since the resulting bytes
+    are stored on ModelVersion.artifact (a deployed backend has no
+    persistent local disk shared across container instances).
+    """
+    buffer = io.BytesIO()
+    joblib.dump(pipeline, buffer)
+    return buffer.getvalue()
+
+
+def deserialize_pipeline(data: bytes) -> Pipeline:
+    return joblib.load(io.BytesIO(data))
+
 # spec §12: exponential recency weighting, grounded in MSCI/Barra USE4's
 # 84-504 trading-day range for equity risk factors — 252 (~1 year) chosen as
 # the more reactive end since staying visibly responsive matters more for a
@@ -36,8 +52,6 @@ USE_RECENCY_WEIGHTING_DEFAULT = False
 TRAIN_FRACTION = 0.70
 VALIDATION_FRACTION = 0.15
 # remaining ~0.15 is the held-out test window
-
-ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "ml_artifacts"
 
 
 def compute_sample_weights(dates: pd.Series, halflife_days: int = RECENCY_HALFLIFE_DAYS) -> np.ndarray:
@@ -197,7 +211,6 @@ def train_baseline_models(
         len(train_df), len(val_df), len(test_df), dataset["target_session_date"].nunique(), weighting_scheme,
     )
 
-    ARTIFACT_DIR.mkdir(exist_ok=True)
     trained = {}
     for algorithm in ("ridge", "random_forest"):
         fit_result = _fit_and_evaluate(algorithm, train_df, val_df, use_recency_weighting)
@@ -220,8 +233,7 @@ def train_baseline_models(
         )
 
         version_label = f"{algorithm}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-        artifact_path = ARTIFACT_DIR / f"{version_label}.joblib"
-        joblib.dump(pipeline, artifact_path)
+        artifact_bytes = serialize_pipeline(pipeline)
 
         training_run = TrainingRun(
             started_at=datetime.now(timezone.utc),
@@ -245,6 +257,7 @@ def train_baseline_models(
             trained_at=datetime.now(timezone.utc),
             status=status,
             promoted_at=datetime.now(timezone.utc) if status == "champion" else None,
+            artifact=artifact_bytes,
             hyperparameters={
                 "weighting_scheme": weighting_scheme,
                 "weighting_decision_rationale": weighting_rationale,

@@ -1,7 +1,6 @@
 import logging
 from datetime import date, datetime, timezone
 
-import joblib
 import lightgbm as lgb
 import pandas as pd
 import xgboost as xgb
@@ -11,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.ml.dataset import FEATURE_COLUMNS, FEATURE_SET_LABEL, LABEL_COLUMN, load_dataset
 from app.ml.evaluate import evaluate_predictions, simulate_top5_portfolio
-from app.ml.train import ARTIFACT_DIR, USE_RECENCY_WEIGHTING_DEFAULT, chronological_split, compute_sample_weights
+from app.ml.train import USE_RECENCY_WEIGHTING_DEFAULT, chronological_split, compute_sample_weights, serialize_pipeline
 from app.models.model_version import ModelVersion
 from app.models.training_run import TrainingRun
 
@@ -151,7 +150,6 @@ def train_challengers(
         raise ValueError("No labeled rows available in this date range — run build_historical_dataset first")
 
     train_df, val_df, test_df = chronological_split(dataset)
-    ARTIFACT_DIR.mkdir(exist_ok=True)
 
     results = {}
     for algorithm in algorithms:
@@ -167,7 +165,7 @@ def train_challengers(
         portfolio = simulate_top5_portfolio(test_predictions, "predicted")
 
         version_label = f"{algorithm}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-        joblib.dump(pipeline, ARTIFACT_DIR / f"{version_label}.joblib")
+        artifact_bytes = serialize_pipeline(pipeline)
 
         training_run = TrainingRun(
             started_at=datetime.now(timezone.utc),
@@ -191,6 +189,7 @@ def train_challengers(
             trained_at=datetime.now(timezone.utc),
             status="challenger",
             promoted_at=None,
+            artifact=artifact_bytes,
             hyperparameters={
                 "weighting_scheme": "recency_weighted" if (use_recency_weighting and algorithm in REGRESSION_ALGORITHMS) else "flat",
                 **GBM_HYPERPARAMS,

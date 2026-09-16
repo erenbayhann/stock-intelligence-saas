@@ -1,14 +1,13 @@
 import logging
 from datetime import date, datetime, timedelta, timezone
 
-import joblib
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ml.dataset import FEATURE_COLUMNS
 from app.ml.explain import explain_prediction
-from app.ml.train import ARTIFACT_DIR
+from app.ml.train import deserialize_pipeline
 from app.models.company import Company
 from app.models.market_price import MarketPrice
 from app.models.model_version import ModelVersion
@@ -42,10 +41,11 @@ def _load_champion(db: Session) -> tuple[ModelVersion, object]:
     champion = db.scalar(select(ModelVersion).where(ModelVersion.status == "champion"))
     if champion is None:
         raise NoChampionModelError("No champion model_version exists — run app.jobs.train_model first")
-    artifact_path = ARTIFACT_DIR / f"{champion.version_label}.joblib"
-    if not artifact_path.exists():
-        raise NoChampionModelError(f"Champion model artifact missing on disk: {artifact_path}")
-    pipeline = joblib.load(artifact_path)
+    if champion.artifact is None:
+        raise NoChampionModelError(
+            f"Champion model_version {champion.id} ({champion.version_label}) has no stored artifact"
+        )
+    pipeline = deserialize_pipeline(champion.artifact)
     return champion, pipeline
 
 

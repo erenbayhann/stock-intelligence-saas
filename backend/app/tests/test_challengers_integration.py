@@ -30,9 +30,7 @@ def _trading_days(n: int) -> list[date]:
     return days
 
 
-def test_train_challengers_end_to_end(db_session, tmp_path, monkeypatch):
-    monkeypatch.setattr("app.ml.challengers.ARTIFACT_DIR", tmp_path)
-
+def test_train_challengers_end_to_end(db_session):
     seed_universe(db_session, SAMPLE_UNIVERSE)
     seed_benchmarks(db_session)
 
@@ -80,4 +78,5 @@ def test_train_challengers_end_to_end(db_session, tmp_path, monkeypatch):
     assert len(training_runs) == 4
 
     for algorithm, r in results.items():
-        assert (tmp_path / f"{r['version_label']}.joblib").exists()
+        mv = db_session.get(ModelVersion, r["model_version_id"])
+        assert mv.artifact is not None

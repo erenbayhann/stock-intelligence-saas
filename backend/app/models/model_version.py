@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Text
+from sqlalchemy import BigInteger, DateTime, LargeBinary, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,3 +21,9 @@ class ModelVersion(Base):
     promoted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     hyperparameters: Mapped[dict | None] = mapped_column(JSONB)
     metrics: Mapped[dict | None] = mapped_column(JSONB)
+    # The joblib-serialized sklearn Pipeline itself (spec §9's trained model),
+    # stored in the DB rather than as a local file — a deployed backend has
+    # no persistent local disk across container instances (confirmed live on
+    # Railway: each one-off job command runs in its own fresh container), so
+    # Postgres is the only thing every instance actually shares.
+    artifact: Mapped[bytes | None] = mapped_column(LargeBinary)
