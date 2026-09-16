@@ -18,6 +18,14 @@ RUN npm run build
 FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Next.js standalone's generated server.js binds to this host — without it,
+# some versions default to a narrower bind address that a platform's proxy
+# (running outside the container, even on the same Docker network) can't
+# reach, producing a silent "application failed to respond" with zero
+# incoming-request log lines (confirmed live on Railway: the app logs a
+# clean startup and is listening on the right port, but no requests ever
+# arrive). 0.0.0.0 accepts connections from any interface.
+ENV HOSTNAME=0.0.0.0
 # next.config.ts sets output: "standalone" — this copies only what that
 # self-contained server.js actually needs, not full node_modules/next build cache.
 COPY --from=builder /app/public ./public
