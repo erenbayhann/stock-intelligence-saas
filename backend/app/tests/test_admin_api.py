@@ -164,6 +164,32 @@ def test_admin_challenger_approve_promotes_and_retires_champion(db_session):
     assert challenger.promoted_at is not None
 
 
+def test_admin_challenger_approve_retires_all_champions_if_more_than_one_exists(db_session):
+    # Regression test: a real incident left the database with two rows
+    # marked status='champion' at once (see train_baseline_models' matching
+    # fix) — a single scalar()-fetch-then-mutate here would only retire one
+    # of them, leaving a stale champion behind after approval.
+    champion_1 = _make_model_version(db_session, "old-champion-1", "champion")
+    champion_2 = _make_model_version(db_session, "old-champion-2", "champion")
+    challenger = _make_model_version(db_session, "new-challenger", "challenger")
+    db_session.commit()
+
+    client = _client(db_session)
+    try:
+        _login(client)
+        response = client.post(f"/api/v1/admin/challengers/{challenger.id}/approve")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    db_session.refresh(champion_1)
+    db_session.refresh(champion_2)
+    db_session.refresh(challenger)
+    assert champion_1.status == "retired"
+    assert champion_2.status == "retired"
+    assert challenger.status == "champion"
+
+
 def test_admin_challenger_reject_retires_without_touching_champion(db_session):
     champion = _make_model_version(db_session, "champ", "champion")
     challenger = _make_model_version(db_session, "weak-challenger", "challenger")

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -48,7 +48,12 @@ def admin_login(body: AdminLoginRequest, response: Response, settings: Settings 
 
 @router.get("/admin/challengers/pending", dependencies=[Depends(require_admin)])
 def admin_challengers_pending(db: Session = Depends(get_db)):
-    champion = db.scalar(select(ModelVersion).where(ModelVersion.status == "champion"))
+    champion = db.scalar(
+        select(ModelVersion)
+        .where(ModelVersion.status == "champion")
+        .order_by(ModelVersion.promoted_at.desc().nulls_last(), ModelVersion.trained_at.desc())
+        .limit(1)
+    )
     challengers = db.scalars(
         select(ModelVersion).where(ModelVersion.status == "challenger").order_by(ModelVersion.trained_at.desc())
     ).all()
@@ -74,10 +79,16 @@ def admin_approve_challenger(model_version_id: int, db: Session = Depends(get_db
     if challenger is None or challenger.status != "challenger":
         raise HTTPException(status_code=404, detail="No pending challenger with that id")
 
-    current_champion = db.scalar(select(ModelVersion).where(ModelVersion.status == "champion"))
-    if current_champion is not None:
-        current_champion.status = "retired"
-        current_champion.promoted_at = None
+    # A bulk update (not a single scalar() fetch-then-mutate) so this stays
+    # correct even if the database ever ends up with more than one row
+    # marked champion (a real incident showed this can happen — see
+    # train_baseline_models' matching fix) — "exactly one champion" should
+    # be an invariant this endpoint enforces, not one it merely assumes.
+    db.execute(
+        update(ModelVersion)
+        .where(ModelVersion.status == "champion")
+        .values(status="retired", promoted_at=None)
+    )
 
     challenger.status = "champion"
     challenger.promoted_at = datetime.now(timezone.utc)

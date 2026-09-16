@@ -10,6 +10,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import Ridge
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.ml.dataset import FEATURE_COLUMNS, FEATURE_SET_LABEL, LABEL_COLUMN, load_dataset
@@ -220,6 +221,18 @@ def train_baseline_models(
     ranking_key = lambda algo: trained[algo]["val_metrics"]["mean_rank_ic"] or -999
     champion_algo = max(trained, key=ranking_key)
     retired_algo = next(a for a in trained if a != champion_algo)
+
+    # This function's docstring assumes "the first models ever trained have
+    # no incumbent to beat" (spec §12) — true for a genuine from-scratch
+    # bootstrap, but a real production incident showed it isn't safe to
+    # assume: re-running this against a database that already has a
+    # champion (e.g. retrying after an interrupted first attempt) left two
+    # rows with status='champion', and an unordered query non-deterministically
+    # picked the stale one. Retiring any existing champion first makes
+    # "exactly one champion at a time" a real invariant, not an assumption.
+    db.execute(
+        update(ModelVersion).where(ModelVersion.status == "champion").values(status="retired")
+    )
 
     results = {}
     for algorithm, status in ((champion_algo, "champion"), (retired_algo, "retired")):

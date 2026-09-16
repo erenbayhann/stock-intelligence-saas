@@ -38,7 +38,21 @@ class PredictionAlreadyExistsError(Exception):
 
 
 def _load_champion(db: Session) -> tuple[ModelVersion, object]:
-    champion = db.scalar(select(ModelVersion).where(ModelVersion.status == "champion"))
+    # "Exactly one champion" should hold by construction (train_baseline_models
+    # and the admin approve endpoint both retire any prior champion before
+    # promoting a new one) — but a real incident showed the database can
+    # still end up with more than one row marked champion (e.g. a training
+    # job re-run against a database that already had one, predating that
+    # fix). Ordering by promoted_at/trained_at and taking the most recent
+    # means this always serves the intended model rather than failing or
+    # non-deterministically picking a stale one, even if that invariant is
+    # ever violated again.
+    champion = db.scalar(
+        select(ModelVersion)
+        .where(ModelVersion.status == "champion")
+        .order_by(ModelVersion.promoted_at.desc().nulls_last(), ModelVersion.trained_at.desc())
+        .limit(1)
+    )
     if champion is None:
         raise NoChampionModelError("No champion model_version exists — run app.jobs.train_model first")
     if champion.artifact is None:

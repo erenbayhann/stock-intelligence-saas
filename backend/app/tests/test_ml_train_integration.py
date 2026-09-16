@@ -88,3 +88,56 @@ def test_train_baseline_models_end_to_end(db_session):
     champion_label = next(r["version_label"] for r in results.values() if r["status"] == "champion")
     champion_row = db_session.scalar(select(ModelVersion).where(ModelVersion.version_label == champion_label))
     assert champion_row.artifact is not None
+
+
+def test_train_baseline_models_retires_a_pre_existing_champion(db_session):
+    # Regression test for a real incident: re-running this against a
+    # database that already had a champion (e.g. retrying after an
+    # interrupted first attempt) used to leave two rows with
+    # status='champion' — an unordered query elsewhere then
+    # non-deterministically picked the stale one instead of the new one.
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    seed_benchmarks(db_session)
+    db_session.add(
+        ModelVersion(
+            version_label="stale-champion", algorithm="random_forest", feature_set="price_fundamentals_macro",
+            trained_at=datetime.now(timezone.utc), status="champion", promoted_at=datetime.now(timezone.utc),
+            hyperparameters={}, metrics={},
+        )
+    )
+    db_session.commit()
+
+    rng = random.Random(1)
+    security_ids = {
+        t: db_session.scalar(select(Security).where(Security.ticker == t)).id for t in TICKERS
+    }
+    spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
+    days = _trading_days(60)
+    prices = {t: 100.0 for t in TICKERS}
+    spy_price = 500.0
+    for day in days:
+        spy_price *= 1 + rng.uniform(-0.01, 0.01)
+        db_session.add(MarketPrice(
+            security_id=spy_id, ts=datetime(day.year, day.month, day.day, 4, tzinfo=timezone.utc),
+            session_type="regular", open=spy_price, high=spy_price, low=spy_price, close=spy_price,
+            volume=1_000_000, source="alpaca_iex",
+        ))
+        _, intraday_cutoff = historical_as_of_cutoffs(day)
+        for t in TICKERS:
+            prices[t] *= 1 + rng.uniform(-0.02, 0.02)
+            db_session.add(MarketPrice(
+                security_id=security_ids[t], ts=datetime(day.year, day.month, day.day, 4, tzinfo=timezone.utc),
+                session_type="regular", open=prices[t], high=prices[t], low=prices[t], close=prices[t],
+                volume=1_000_000, source="alpaca_iex",
+            ))
+            features = {col: rng.uniform(-1, 1) for col in FEATURE_COLUMNS}
+            db_session.add(FeatureSnapshot(security_id=security_ids[t], as_of=intraday_cutoff, features=features))
+    db_session.commit()
+
+    train_baseline_models(db_session, days[0], days[-1], set(TICKERS))
+
+    champions = db_session.scalars(select(ModelVersion).where(ModelVersion.status == "champion")).all()
+    assert len(champions) == 1
+    assert champions[0].version_label != "stale-champion"
+    stale = db_session.scalar(select(ModelVersion).where(ModelVersion.version_label == "stale-champion"))
+    assert stale.status == "retired"
