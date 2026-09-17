@@ -44,7 +44,7 @@ export default async function DayDetailPage({
         US Equities &middot; S&amp;P 100 universe &middot; top 5 picks &amp; outcome
       </div>
 
-      <div className="grid grid-cols-[1fr_220px_220px] gap-3.5 my-6">
+      <div className="grid grid-cols-[1fr_220px_220px] max-md:grid-cols-1 gap-3.5 my-6">
         <div className="rounded-2xl border border-panel-border bg-panel p-5">
           <div className="text-[10.5px] font-bold uppercase tracking-widest text-ink-soft mb-2">
             That session
@@ -73,13 +73,13 @@ export default async function DayDetailPage({
       </div>
 
       <div className="rounded-2xl border border-panel-border bg-panel mb-4 overflow-hidden">
-        <div className="grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] items-center px-5 py-3 border-b border-panel-border text-[10px] font-bold uppercase tracking-wider text-ink-faint">
+        <div className="grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] max-md:grid-cols-[28px_1fr_64px_50px] items-center px-5 py-3 max-md:px-4 border-b border-panel-border text-[10px] font-bold uppercase tracking-wider text-ink-faint">
           <div>#</div>
           <div>Symbol</div>
           <div>AI Score</div>
-          <div>Confidence</div>
-          <div>Actual</div>
-          <div>vs S&amp;P 500</div>
+          <div className="max-md:hidden">Confidence</div>
+          <div className="max-md:hidden">Actual</div>
+          <div className="max-md:hidden">vs S&amp;P 500</div>
           <div>Result</div>
         </div>
         {detail.top5.map((item) => (
@@ -87,7 +87,7 @@ export default async function DayDetailPage({
             key={item.ticker}
             href={`/stocks/${item.ticker}`}
             className={
-              "grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 no-underline text-ink row-hover " +
+              "grid grid-cols-[36px_1fr_80px_96px_100px_110px_130px] max-md:grid-cols-[28px_1fr_64px_50px] items-center px-5 py-3.5 max-md:px-4 border-b border-row-border last:border-b-0 no-underline text-ink row-hover " +
               (item.direction_correct === true ? "border-l-2 border-l-green" : "border-l-2 border-l-transparent")
             }
           >
@@ -102,13 +102,13 @@ export default async function DayDetailPage({
               {formatScore(item.ai_score)}
               <span className="font-mono-tabular text-[11px] text-ink-dim">/100</span>
             </div>
-            <div>
+            <div className="max-md:hidden">
               <ConfidencePill confidence={item.confidence} />
             </div>
-            <div>
+            <div className="max-md:hidden">
               <SignedValue value={item.actual_return} />
             </div>
-            <div>
+            <div className="max-md:hidden">
               <SignedValue value={item.vs_benchmark} />
             </div>
             <div className={item.direction_correct === true ? "result-correct-highlight" : undefined}>

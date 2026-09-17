@@ -189,7 +189,7 @@ export function PriceChart({ bars, benchmarkBars }: { bars: PriceBar[]; benchmar
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-1 max-md:flex-wrap max-md:gap-y-2.5">
         <div className="flex items-baseline">
           <div className="font-display text-2xl">
             {latest ? `$${latest.close.toFixed(2)}` : "—"}
@@ -201,12 +201,12 @@ export function PriceChart({ bars, benchmarkBars }: { bars: PriceBar[]; benchmar
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 max-md:w-full max-md:justify-between">
           {benchmarkBars && benchmarkBars.length > 0 && (
             <button
               onClick={() => setCompareMode((v) => !v)}
               className={
-                "flex items-center gap-1.5 font-mono-tabular text-[11px] px-2.5 py-1 rounded-full border " +
+                "flex items-center gap-1.5 whitespace-nowrap font-mono-tabular text-[11px] px-2.5 py-1 rounded-full border " +
                 (compareMode ? "border-blue text-blue-ink bg-blue/20" : "border-panel-border text-ink-faint")
               }
             >
@@ -215,7 +215,8 @@ export function PriceChart({ bars, benchmarkBars }: { bars: PriceBar[]; benchmar
                   "inline-block w-2 h-2 rounded-full " + (compareMode ? "bg-blue" : "bg-ink-dim")
                 }
               />
-              S&amp;P 500 ile karşılaştır
+              <span className="max-[420px]:hidden">S&amp;P 500 ile karşılaştır</span>
+              <span className="hidden max-[420px]:inline">vs S&amp;P 500</span>
             </button>
           )}
           <div className="flex gap-1.5">

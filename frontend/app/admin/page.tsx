@@ -212,7 +212,7 @@ export default function AdminPage() {
           {jobs.map((job) => (
             <div
               key={job.job_name}
-              className="grid grid-cols-[1fr_100px_180px] items-center px-5 py-3 border-b border-row-border last:border-b-0 text-sm row-hover"
+              className="grid grid-cols-[1fr_100px_180px] max-md:grid-cols-[1fr_70px] items-center px-5 py-3 max-md:px-4 border-b border-row-border last:border-b-0 text-sm row-hover"
             >
               <div className="text-ink-news">{job.job_name}</div>
               <div
@@ -223,7 +223,7 @@ export default function AdminPage() {
               >
                 {job.status}
               </div>
-              <div className="font-mono-tabular text-xs text-ink-faint">
+              <div className="font-mono-tabular text-xs text-ink-faint max-md:hidden">
                 {new Date(job.started_at).toLocaleString()}
               </div>
             </div>
@@ -238,7 +238,7 @@ export default function AdminPage() {
           {alerts.map((alert) => (
             <div
               key={alert.id}
-              className="flex items-center justify-between gap-4 px-5 py-3 border-b border-row-border last:border-b-0 text-sm"
+              className="flex items-center justify-between gap-4 max-md:flex-wrap max-md:gap-2 px-5 py-3 max-md:px-4 border-b border-row-border last:border-b-0 text-sm"
             >
               <div>
                 <span
@@ -305,7 +305,7 @@ export default function AdminPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-4">
+      <section className="grid grid-cols-2 max-md:grid-cols-1 gap-4">
         <div className="rounded-2xl border border-panel-border bg-panel p-5">
           <h2 className="font-sans font-bold text-sm mb-3">LLM / API credit balance</h2>
           {credit ? (

@@ -14,9 +14,9 @@ export function StatTile({
   variant: "green" | "blue" | "white";
 }) {
   return (
-    <div className={`rounded-2xl px-5 py-5 stat-tile-interactive ${VARIANT_CLASSES[variant]}`}>
-      <div className="font-display text-[34px] leading-none relative z-[1]">{value}</div>
-      <div className="font-sans font-bold text-[10.5px] uppercase tracking-wide mt-2 opacity-75 relative z-[1]">
+    <div className={`rounded-2xl px-5 py-5 max-md:px-3 max-md:py-4 stat-tile-interactive ${VARIANT_CLASSES[variant]}`}>
+      <div className="font-display text-[34px] max-md:text-[24px] leading-none relative z-[1]">{value}</div>
+      <div className="font-sans font-bold text-[10.5px] max-md:text-[9px] uppercase tracking-wide mt-2 opacity-75 relative z-[1]">
         {label}
       </div>
     </div>

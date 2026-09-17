@@ -55,7 +55,7 @@ export default async function StockDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_320px] gap-4 my-5">
+      <div className="grid grid-cols-[1fr_320px] max-md:grid-cols-1 gap-4 my-5">
         <div className="rounded-2xl border border-panel-border bg-panel p-6">
           <PriceChart bars={prices?.bars ?? []} benchmarkBars={benchmarkPrices?.bars} />
         </div>
@@ -89,7 +89,7 @@ export default async function StockDetailPage({
       </div>
 
       {fundamentals && (
-        <div className="grid grid-cols-6 gap-3 mb-5">
+        <div className="grid grid-cols-6 max-md:grid-cols-2 gap-3 mb-5">
           <div className="rounded-2xl border border-panel-border bg-panel p-4 hover-lift hover-glow-neutral">
             <div className="font-display text-[19px]">{formatCompactUsd(fundamentals.market_cap)}</div>
             <div className="font-mono-tabular text-[10px] text-ink-faint uppercase tracking-wide mt-1.5">Market Cap</div>
@@ -154,34 +154,34 @@ export default async function StockDetailPage({
         <h2 className="font-sans font-bold text-[15px] m-0">Prediction history for {detail.ticker}</h2>
       </div>
       <div className="rounded-2xl border border-panel-border bg-panel overflow-hidden">
-        <div className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] items-center px-5 py-3 border-b border-panel-border text-[10px] font-bold uppercase tracking-wider text-ink-faint">
+        <div className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] max-md:grid-cols-[70px_1fr_50px] items-center px-5 py-3 max-md:px-4 border-b border-panel-border text-[10px] font-bold uppercase tracking-wider text-ink-faint">
           <div>Date</div>
-          <div>Rank</div>
+          <div className="max-md:hidden">Rank</div>
           <div>AI Score</div>
-          <div>Confidence</div>
-          <div>Actual</div>
-          <div>vs S&amp;P 500</div>
+          <div className="max-md:hidden">Confidence</div>
+          <div className="max-md:hidden">Actual</div>
+          <div className="max-md:hidden">vs S&amp;P 500</div>
           <div>Result</div>
         </div>
         {predictions && predictions.predictions.length > 0 ? (
           predictions.predictions.map((p) => (
             <div
               key={p.target_session_date}
-              className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] items-center px-5 py-3.5 border-b border-row-border last:border-b-0 row-hover"
+              className="grid grid-cols-[110px_70px_90px_96px_100px_110px_130px] max-md:grid-cols-[70px_1fr_50px] items-center px-5 py-3.5 max-md:px-4 border-b border-row-border last:border-b-0 row-hover"
             >
               <div className="font-mono-tabular text-sm">{formatShortDate(p.target_session_date)}</div>
-              <div className="font-mono-tabular text-sm">#{p.rank}</div>
+              <div className="font-mono-tabular text-sm max-md:hidden">#{p.rank}</div>
               <div className="font-display text-base text-green">
                 {formatScore(p.ai_score)}
                 <span className="font-mono-tabular text-[11px] text-ink-dim">/100</span>
               </div>
-              <div>
+              <div className="max-md:hidden">
                 <ConfidencePill confidence={p.confidence} />
               </div>
-              <div>
+              <div className="max-md:hidden">
                 <SignedValue value={p.actual_return} />
               </div>
-              <div>
+              <div className="max-md:hidden">
                 <SignedValue value={p.vs_benchmark} />
               </div>
               <div>

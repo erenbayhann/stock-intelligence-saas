@@ -56,18 +56,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <header className="border-b border-panel-border">
-          <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
+          <div className="mx-auto max-w-6xl px-6 py-5 max-md:px-4 max-md:py-4 flex items-center justify-between">
             <Link href="/" className="no-underline">
               <Logo />
             </Link>
-            <nav className="font-mono-tabular text-xs text-ink-faint flex items-center gap-5">
+            <nav className="font-mono-tabular text-xs text-ink-faint flex items-center gap-5 max-md:gap-3 max-[420px]:gap-2.5">
               <Link href="/" className="hover:text-ink-soft no-underline">
                 Rankings
               </Link>
               <Link href="/news" className="hover:text-ink-soft no-underline">
                 News
               </Link>
-              <Link href="/methodology" className="hover:text-ink-soft no-underline">
+              <Link href="/methodology" className="hover:text-ink-soft no-underline max-[380px]:hidden">
                 Methodology
               </Link>
               <Link href="/admin" className="hover:text-ink-soft no-underline">
@@ -76,9 +76,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </nav>
           </div>
         </header>
-        <main className="flex-1 mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+        <main className="flex-1 mx-auto w-full max-w-6xl px-6 py-8 max-md:px-4 max-md:py-5">{children}</main>
         <footer className="border-t border-panel-border">
-          <div className="mx-auto max-w-6xl px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-3 text-xs text-ink-soft">
+          <div className="mx-auto max-w-6xl px-6 py-5 max-md:px-4 flex flex-col sm:flex-row sm:items-center gap-3 text-xs text-ink-soft">
             <Logo iconSize={18} textSize={13} />
             <div>
               Research and decision-support tool only. Model-generated research

@@ -41,9 +41,9 @@ export default async function NewsPage() {
           items.map((item, i) => (
             <div
               key={`${item.ticker}-${item.url}`}
-              className="px-5 py-4 border-b border-row-border last:border-b-0"
+              className="px-5 py-4 max-md:px-4 border-b border-row-border last:border-b-0"
             >
-              <div className="flex items-center justify-between gap-3 mb-1.5">
+              <div className="flex items-center justify-between gap-3 max-md:flex-wrap max-md:gap-1.5 mb-1.5">
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono-tabular text-xs text-ink-dim">
                     {String(i + 1).padStart(2, "0")}

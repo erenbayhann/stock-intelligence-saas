@@ -48,19 +48,19 @@ export default async function DashboardPage() {
       </div>
 
       <div className="rounded-2xl border border-panel-border bg-panel mb-4 overflow-hidden">
-        <div className="grid grid-cols-[40px_1fr_70px_90px_110px_90px] px-5 py-3 border-b border-panel-border text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">
+        <div className="grid grid-cols-[40px_1fr_70px_90px_110px_90px] max-md:grid-cols-[28px_1fr_64px] px-5 py-3 max-md:px-4 border-b border-panel-border text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">
           <div>#</div>
           <div>Symbol</div>
-          <div>Rank Δ</div>
+          <div className="max-md:hidden">Rank Δ</div>
           <div>AI Score</div>
-          <div>Confidence</div>
-          <div>Direction</div>
+          <div className="max-md:hidden">Confidence</div>
+          <div className="max-md:hidden">Direction</div>
         </div>
         {ranking.top5.map((item, i) => (
           <Link
             key={item.ticker}
             href={`/stocks/${item.ticker}`}
-            className="grid grid-cols-[40px_1fr_70px_90px_110px_90px] items-center px-5 py-4 border-b border-row-border last:border-b-0 no-underline text-ink row-hover"
+            className="grid grid-cols-[40px_1fr_70px_90px_110px_90px] max-md:grid-cols-[28px_1fr_64px] items-center px-5 py-4 max-md:px-4 border-b border-row-border last:border-b-0 no-underline text-ink row-hover"
           >
             <div className="font-mono-tabular text-sm text-ink-dim">
               {String(item.rank).padStart(2, "0")}
@@ -69,17 +69,17 @@ export default async function DashboardPage() {
               <div className="font-display text-base text-ink">{item.ticker}</div>
               <div className="text-xs text-ink-soft mt-0.5">{item.company_name}</div>
             </div>
-            <div>
+            <div className="max-md:hidden">
               <RankChangeBadge currentRank={item.rank} previousRank={previousRanks[i]} />
             </div>
             <div className="font-display text-xl text-green">
               {formatScore(item.ai_score)}
               <span className="font-mono-tabular text-xs text-ink-dim">/100</span>
             </div>
-            <div>
+            <div className="max-md:hidden">
               <ConfidencePill confidence={item.confidence} />
             </div>
-            <div>
+            <div className="max-md:hidden">
               <DirectionBadge />
             </div>
           </Link>
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
       </div>
 
       {featured && (
-        <div className="grid grid-cols-[380px_1fr] gap-4 mb-4">
+        <div className="grid grid-cols-[380px_1fr] max-md:grid-cols-1 gap-4 mb-4">
           <div className="rounded-2xl bg-gradient-to-br from-green-grad-from to-green-grad-to text-hero-ink p-7 flex flex-col justify-between stat-tile-interactive tile-green">
             <div className="relative z-[1]">
               <div className="font-display text-xl">{featured.ticker}</div>
@@ -153,31 +153,31 @@ export default async function DashboardPage() {
         Last 7 Days
       </div>
       <div className="rounded-2xl border border-panel-border bg-panel mb-4 overflow-hidden">
-        <div className="grid grid-cols-[90px_90px_90px_90px_1fr_110px] px-5 py-3 border-b border-panel-border text-[10px] font-bold uppercase tracking-wider text-ink-faint">
+        <div className="grid grid-cols-[90px_90px_90px_90px_1fr_110px] max-md:grid-cols-[60px_1fr_50px] px-5 py-3 max-md:px-4 border-b border-panel-border text-[10px] font-bold uppercase tracking-wider text-ink-faint">
           <div>Date</div>
           <div>Pick</div>
-          <div>AI Score</div>
-          <div>Actual</div>
+          <div className="max-md:hidden">AI Score</div>
+          <div className="max-md:hidden">Actual</div>
           <div>Result</div>
-          <div>vs S&amp;P 500</div>
+          <div className="max-md:hidden">vs S&amp;P 500</div>
         </div>
         {history && history.items.length > 0 ? (
           history.items.map((day) => (
             <Link
               key={day.target_session_date}
               href={`/day/${day.target_session_date}`}
-              className="grid grid-cols-[90px_90px_90px_90px_1fr_110px] items-center px-5 py-3 border-b border-row-border last:border-b-0 font-mono-tabular text-xs text-ink-news no-underline row-hover"
+              className="grid grid-cols-[90px_90px_90px_90px_1fr_110px] max-md:grid-cols-[60px_1fr_50px] items-center px-5 py-3 max-md:px-4 border-b border-row-border last:border-b-0 font-mono-tabular text-xs text-ink-news no-underline row-hover"
             >
               <div>{formatShortDate(day.target_session_date)}</div>
               <div>{day.top_pick?.ticker ?? "—"}</div>
-              <div>{day.top_pick ? `${formatScore(day.top_pick.ai_score)}/100` : "—"}</div>
-              <div>
+              <div className="max-md:hidden">{day.top_pick ? `${formatScore(day.top_pick.ai_score)}/100` : "—"}</div>
+              <div className="max-md:hidden">
                 <SignedValue value={day.top_pick?.actual_return ?? null} />
               </div>
               <div>
                 <ResultBadge correct={day.top_pick?.direction_correct ?? null} />
               </div>
-              <div>
+              <div className="max-md:hidden">
                 <SignedValue value={day.top_pick?.vs_benchmark ?? null} />
               </div>
             </Link>
