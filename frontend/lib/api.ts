@@ -164,6 +164,23 @@ export interface ModelVersionListResponse {
   versions: ModelVersionSummary[];
 }
 
+export interface TopNewsItem {
+  ticker: string;
+  company_name: string;
+  title: string;
+  url: string;
+  source: string;
+  published_time: string;
+  sentiment: number | null;
+  event_category: string | null;
+  importance: number;
+  score: number;
+}
+
+export interface TopNewsResponse {
+  items: TopNewsItem[];
+}
+
 async function getJson<T>(url: string, init?: RequestInit): Promise<T | null> {
   const response = await fetch(url, { cache: "no-store", ...init });
   if (response.status === 404) return null;
@@ -196,4 +213,5 @@ export const api = {
   performanceSummary: (window: "7d" | "30d" | "all" = "7d") =>
     getJson<PerformanceSummary>(`${SERVER_API_BASE}/api/v1/performance/summary?window=${window}`),
   modelVersions: () => getJson<ModelVersionListResponse>(`${SERVER_API_BASE}/api/v1/model/versions`),
+  topNews: (limit = 20) => getJson<TopNewsResponse>(`${SERVER_API_BASE}/api/v1/news/top?limit=${limit}`),
 };

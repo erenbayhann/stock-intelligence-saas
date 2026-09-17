@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -17,6 +17,8 @@ from app.services.data_quality_service import record_alert
 logger = logging.getLogger(__name__)
 
 _PARENTHETICAL_SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
+
+TOP_NEWS_LOOKBACK_HOURS = 48
 
 
 def build_ticker_search_phrases(db: Session) -> dict[str, str]:
@@ -219,3 +221,44 @@ def classify_unprocessed_articles(
         "llm_tokens_in": tokens_in_total,
         "llm_tokens_out": tokens_out_total,
     }
+
+
+def get_top_news(db: Session, limit: int = 20) -> list[dict]:
+    """Independent of the ranking model (spec §12/§15) — this surfaces
+    whichever classified headlines the LLM itself scored as most
+    relevant+important for a company in the last TOP_NEWS_LOOKBACK_HOURS,
+    ranked by relevance x importance. Not a prediction and not fed into
+    train_model/generate_predictions; a same-day news salience digest only.
+    """
+    since = datetime.now(timezone.utc) - timedelta(hours=TOP_NEWS_LOOKBACK_HOURS)
+    score = NewsCompanyLink.relevance * NewsCompanyLink.importance
+
+    rows = db.execute(
+        select(NewsArticle, NewsCompanyLink, Security.ticker, Company.name)
+        .join(NewsCompanyLink, NewsCompanyLink.news_article_id == NewsArticle.id)
+        .join(Security, Security.id == NewsCompanyLink.security_id)
+        .join(Company, Company.id == Security.company_id)
+        .where(
+            NewsArticle.is_duplicate_of.is_(None),
+            NewsArticle.published_time >= since,
+            NewsCompanyLink.importance.is_not(None),
+        )
+        .order_by(score.desc())
+        .limit(limit)
+    ).all()
+
+    return [
+        {
+            "ticker": ticker,
+            "company_name": name,
+            "title": article.title,
+            "url": article.url,
+            "source": article.source,
+            "published_time": article.published_time,
+            "sentiment": float(link.sentiment) if link.sentiment is not None else None,
+            "event_category": link.event_category,
+            "importance": float(link.importance),
+            "score": round(float(link.relevance or 0) * float(link.importance), 4),
+        }
+        for article, link, ticker, name in rows
+    ]

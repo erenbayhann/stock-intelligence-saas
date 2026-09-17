@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
@@ -7,8 +7,10 @@ from app.models.security import Security
 from app.providers.llm.news_extractor import ClassificationResult, LLMProviderError, TickerClassification
 from app.providers.news.base import RawArticle
 from app.services.news_service import (
+    TOP_NEWS_LOOKBACK_HOURS,
     build_ticker_search_phrases,
     classify_unprocessed_articles,
+    get_top_news,
     store_articles,
 )
 from app.services.universe_service import seed_universe
@@ -157,3 +159,54 @@ def test_classify_unprocessed_articles_logs_alert_on_llm_failure(db_session):
     assert len(alerts) == 1
     assert alerts[0].category == "llm_provider_error"
     assert alerts[0].detail["kind"] == "rate_limited"
+
+
+def _classified_article(db_session, security_id, url, *, relevance, importance, sentiment=0.0,
+                         published_time=None, event_category="Earnings"):
+    published_time = published_time or datetime.now(timezone.utc)
+    article = NewsArticle(
+        source="gdelt", title=f"Headline {url}", url=url,
+        published_time=published_time, classified_at=datetime.now(timezone.utc),
+    )
+    db_session.add(article)
+    db_session.flush()
+    db_session.add(NewsCompanyLink(
+        news_article_id=article.id, security_id=security_id,
+        relevance=relevance, sentiment=sentiment, event_category=event_category, importance=importance,
+    ))
+    db_session.commit()
+    return article
+
+
+def test_get_top_news_orders_by_relevance_times_importance(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    googl_id = db_session.scalar(select(Security).where(Security.ticker == "GOOGL")).id
+
+    _classified_article(db_session, aapl_id, "https://example.com/low", relevance=0.3, importance=0.2)
+    _classified_article(db_session, googl_id, "https://example.com/high", relevance=0.9, importance=0.9)
+
+    items = get_top_news(db_session, limit=10)
+
+    assert [i["ticker"] for i in items] == ["GOOGL", "AAPL"]
+    assert items[0]["score"] == 0.81
+
+
+def test_get_top_news_excludes_articles_outside_lookback_window(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    stale_time = datetime.now(timezone.utc) - timedelta(hours=TOP_NEWS_LOOKBACK_HOURS + 1)
+
+    _classified_article(db_session, aapl_id, "https://example.com/stale", relevance=1.0, importance=1.0, published_time=stale_time)
+
+    assert get_top_news(db_session, limit=10) == []
+
+
+def test_get_top_news_excludes_unclassified_links(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    ticker_to_security_id = {s.ticker: s.id for s in db_session.scalars(select(Security))}
+    # Provider-level match only (relevance set, importance/sentiment still NULL
+    # until the LLM classification pass runs) — must not appear as "top news".
+    store_articles(db_session, [_article("https://example.com/unclassified", matched=("AAPL",))], ticker_to_security_id)
+
+    assert get_top_news(db_session, limit=10) == []

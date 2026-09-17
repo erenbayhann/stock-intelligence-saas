@@ -64,6 +64,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="hover:text-ink-soft no-underline">
                 Rankings
               </Link>
+              <Link href="/news" className="hover:text-ink-soft no-underline">
+                News
+              </Link>
               <Link href="/methodology" className="hover:text-ink-soft no-underline">
                 Methodology
               </Link>
