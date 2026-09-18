@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.get("/news/top", response_model=TopNewsResponse)
-def news_top(limit: int = Query(default=20, ge=1, le=100), db: Session = Depends(get_db)):
+def news_top(limit: int = Query(default=5, ge=1, le=100), db: Session = Depends(get_db)):
     return {"items": get_top_news(db, limit=limit)}
 
 

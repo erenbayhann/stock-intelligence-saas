@@ -7,15 +7,15 @@ export const metadata = {
 };
 
 export default async function NewsPage() {
-  const [news, history] = await Promise.all([api.topNews(30), api.newsHistory(7)]);
+  const [news, history] = await Promise.all([api.topNews(5), api.newsHistory(7)]);
 
   return (
     <div>
       <div className="font-display text-[22px] tracking-tight text-ink mb-3">
-        NEWS SIGNALS
+        TOP 5 NEWS SIGNALS
       </div>
       <div className="text-[10.5px] font-bold uppercase tracking-widest text-ink-soft mb-4">
-        Ranked by the model&apos;s own relevance &amp; importance scoring
+        Today&apos;s highest relevance &amp; importance scored headlines
       </div>
 
       <div className="flex items-center gap-2.5 rounded-xl border border-panel-border bg-[#0c0d0e] px-5 py-3.5 mb-6 text-xs text-ink-soft">
