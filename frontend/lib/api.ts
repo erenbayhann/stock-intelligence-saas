@@ -175,6 +175,11 @@ export interface TopNewsItem {
   event_category: string | null;
   importance: number;
   score: number;
+  // Only ever populated in newsHistory() (a past, closed session) — always
+  // null from topNews(), whose session hasn't closed yet.
+  actual_return: number | null;
+  vs_benchmark: number | null;
+  direction_correct: boolean | null;
 }
 
 export interface TopNewsResponse {

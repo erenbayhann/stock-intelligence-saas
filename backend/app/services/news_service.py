@@ -13,6 +13,7 @@ from app.models.security import Security
 from app.providers.llm.news_extractor import ClaudeNewsExtractor, LLMProviderError
 from app.providers.news.base import NewsProvider, RawArticle
 from app.services.data_quality_service import record_alert
+from app.services.label_service import compute_realized_label, next_trading_session_after
 
 logger = logging.getLogger(__name__)
 
@@ -225,8 +226,11 @@ def classify_unprocessed_articles(
     }
 
 
-def _news_item(article: NewsArticle, link: NewsCompanyLink, ticker: str, name: str) -> dict:
-    return {
+_NEUTRAL_SENTIMENT_THRESHOLD = 0.15  # matches SentimentBadge's neutral cutoff on the frontend
+
+
+def _news_item(article: NewsArticle, link: NewsCompanyLink, ticker: str, name: str, outcome: dict | None = None) -> dict:
+    item = {
         "ticker": ticker,
         "company_name": name,
         "title": article.title,
@@ -237,6 +241,41 @@ def _news_item(article: NewsArticle, link: NewsCompanyLink, ticker: str, name: s
         "event_category": link.event_category,
         "importance": float(link.importance),
         "score": round(float(link.relevance or 0) * float(link.importance), 4),
+    }
+    item.update(outcome or {"actual_return": None, "vs_benchmark": None, "direction_correct": None})
+    return item
+
+
+def _realized_outcome(
+    db: Session, security_id: int, published_time: datetime, sentiment: float | None
+) -> dict:
+    """Did the stock's own next-session return actually move the direction
+    this headline's sentiment implied? A separate, honest evaluation of the
+    news signal itself — never fed back into train_model/generate_predictions
+    (spec §12/§15 exclude news from the ranking model's own feature set until
+    its rollout bar is met; this is unrelated, purely a display-side check).
+    Compared against the stock's own realized return, not excess-vs-benchmark
+    like the ranking model's evaluation, because sentiment is a claim about
+    this specific stock's reaction, not a claim about beating the market.
+    Every field is None when the reacting session hasn't closed yet, or when
+    sentiment is too close to neutral to make a directional claim at all.
+    """
+    session_date = next_trading_session_after(db, published_time)
+    if session_date is None:
+        return {"actual_return": None, "vs_benchmark": None, "direction_correct": None}
+
+    label = compute_realized_label(db, security_id, session_date)
+    if label is None:
+        return {"actual_return": None, "vs_benchmark": None, "direction_correct": None}
+
+    direction_correct = None
+    if sentiment is not None and abs(sentiment) >= _NEUTRAL_SENTIMENT_THRESHOLD:
+        direction_correct = (sentiment > 0) == (label["actual_return"] > 0)
+
+    return {
+        "actual_return": label["actual_return"],
+        "vs_benchmark": label["actual_excess_return"],
+        "direction_correct": direction_correct,
     }
 
 
@@ -293,12 +332,24 @@ def get_news_history(
         )
     ).all()
 
-    by_day: dict[str, list[dict]] = {}
+    by_day: dict[str, list[tuple]] = {}
     for article, link, ticker, name in rows:
         day_key = article.published_time.date().isoformat()
-        by_day.setdefault(day_key, []).append(_news_item(article, link, ticker, name))
+        by_day.setdefault(day_key, []).append((article, link, ticker, name))
 
-    return [
-        {"date": day, "items": sorted(items, key=lambda x: x["score"], reverse=True)[:per_day_limit]}
-        for day, items in sorted(by_day.items(), reverse=True)
-    ]
+    def _row_score(row: tuple) -> float:
+        _, link, _, _ = row
+        return float(link.relevance or 0) * float(link.importance)
+
+    result = []
+    for day, day_rows in sorted(by_day.items(), reverse=True):
+        # Outcome-lookup queries only run for the rows that actually survive
+        # the per-day cut, not every classified link that day.
+        top_rows = sorted(day_rows, key=_row_score, reverse=True)[:per_day_limit]
+        items = []
+        for article, link, ticker, name in top_rows:
+            sentiment = float(link.sentiment) if link.sentiment is not None else None
+            outcome = _realized_outcome(db, link.security_id, article.published_time, sentiment)
+            items.append(_news_item(article, link, ticker, name, outcome))
+        result.append({"date": day, "items": items})
+    return result

@@ -67,6 +67,30 @@ def _close_to_close_return(db: Session, security_id: int, target_session_date: d
     return (float(bars[0].close) - prior_close) / prior_close
 
 
+def next_trading_session_after(db: Session, after: datetime) -> date | None:
+    """The first real trading day (per the benchmark's own regular-session
+    bars, same "real trading days" source as get_trading_days) whose close
+    happens strictly after `after` — e.g. for overnight/after-hours news,
+    this is the next session; for news published intraday before that
+    session's close, it's that same session. None if no such bar exists yet
+    (session hasn't closed) — never guessed from a calendar.
+    """
+    benchmark = db.scalar(select(Security).where(Security.ticker == BENCHMARK_TICKER))
+    if benchmark is None:
+        return None
+    ts = db.scalar(
+        select(MarketPrice.ts)
+        .where(
+            MarketPrice.security_id == benchmark.id,
+            MarketPrice.session_type == "regular",
+            MarketPrice.ts > after,
+        )
+        .order_by(MarketPrice.ts.asc())
+        .limit(1)
+    )
+    return ts.date() if ts else None
+
+
 def compute_realized_label(db: Session, security_id: int, target_session_date: date) -> dict | None:
     """spec §2: next_session_stock_return - next_session_market_return.
     Returns None (never a fabricated 0.0) if either leg is unavailable —

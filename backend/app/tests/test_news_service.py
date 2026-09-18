@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from sqlalchemy import select
 
+from app.models.market_price import MarketPrice
 from app.models.news import NewsArticle, NewsCompanyLink
 from app.models.security import Security
 from app.providers.llm.news_extractor import ClassificationResult, LLMProviderError, TickerClassification
@@ -14,7 +16,7 @@ from app.services.news_service import (
     get_top_news,
     store_articles,
 )
-from app.services.universe_service import seed_universe
+from app.services.universe_service import seed_benchmarks, seed_universe
 
 SAMPLE_UNIVERSE = [
     {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Information Technology", "exchange": "NASDAQ", "cik": "0000320193"},
@@ -268,3 +270,88 @@ def test_get_news_history_caps_items_per_day(db_session):
     assert len(history[0]["items"]) == 5
     # highest score first
     assert history[0]["items"][0]["score"] >= history[0]["items"][-1]["score"]
+
+
+def _bar(security_id, ts, close):
+    return MarketPrice(
+        security_id=security_id, ts=ts, session_type="regular",
+        open=close, high=close, low=close, close=close,
+        volume=1_000_000, source="alpaca_iex",
+    )
+
+
+def test_get_news_history_attaches_realized_outcome_when_session_closed(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    seed_benchmarks(db_session)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
+
+    published_time = datetime.now(timezone.utc) - timedelta(hours=26)
+    prior_ts = published_time - timedelta(hours=4)
+    reacting_ts = published_time + timedelta(hours=24)  # the next session's close, after publication
+
+    db_session.add_all([
+        _bar(aapl_id, prior_ts, 100.0), _bar(aapl_id, reacting_ts, 105.0),  # AAPL: +5%
+        _bar(spy_id, prior_ts, 100.0), _bar(spy_id, reacting_ts, 101.0),  # SPY: +1%
+    ])
+    db_session.commit()
+
+    _classified_article(
+        db_session, aapl_id, "https://example.com/outcome-positive",
+        relevance=0.9, importance=0.9, sentiment=0.8, published_time=published_time,
+    )
+
+    history = get_news_history(db_session, days=7)
+    item = history[0]["items"][0]
+
+    assert item["actual_return"] == pytest.approx(0.05)
+    assert item["vs_benchmark"] == pytest.approx(0.04)
+    assert item["direction_correct"] is True  # positive sentiment, stock actually went up
+
+
+def test_get_news_history_outcome_is_none_when_session_hasnt_closed_yet(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    seed_benchmarks(db_session)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    # No MarketPrice bars at all after publication — nothing to react with yet.
+    published_time = datetime.now(timezone.utc) - timedelta(hours=26)
+
+    _classified_article(
+        db_session, aapl_id, "https://example.com/outcome-pending",
+        relevance=0.9, importance=0.9, sentiment=0.8, published_time=published_time,
+    )
+
+    history = get_news_history(db_session, days=7)
+    item = history[0]["items"][0]
+
+    assert item["actual_return"] is None
+    assert item["vs_benchmark"] is None
+    assert item["direction_correct"] is None
+
+
+def test_get_news_history_direction_correct_is_none_for_neutral_sentiment(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    seed_benchmarks(db_session)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
+
+    published_time = datetime.now(timezone.utc) - timedelta(hours=26)
+    prior_ts = published_time - timedelta(hours=4)
+    reacting_ts = published_time + timedelta(hours=24)
+
+    db_session.add_all([
+        _bar(aapl_id, prior_ts, 100.0), _bar(aapl_id, reacting_ts, 105.0),
+        _bar(spy_id, prior_ts, 100.0), _bar(spy_id, reacting_ts, 101.0),
+    ])
+    db_session.commit()
+
+    _classified_article(
+        db_session, aapl_id, "https://example.com/outcome-neutral",
+        relevance=0.9, importance=0.9, sentiment=0.05, published_time=published_time,
+    )
+
+    history = get_news_history(db_session, days=7)
+    item = history[0]["items"][0]
+
+    assert item["actual_return"] == pytest.approx(0.05)  # outcome is still reported...
+    assert item["direction_correct"] is None  # ...but no directional claim to grade
