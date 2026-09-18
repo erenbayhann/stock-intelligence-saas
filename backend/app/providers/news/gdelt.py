@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime, timezone
 
 import httpx
@@ -12,6 +13,15 @@ logger = logging.getLogger(__name__)
 _BASE_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 _BATCH_SIZE = 8  # tickers per OR'd query, per data-ingestion-plan_1.md §2
 _MAX_RECORDS = 250  # GDELT's documented max for mode=artlist
+# GDELT's own 429 body states this explicitly ("limit requests to one every
+# 5 seconds") — verified live. The per-batch retry/backoff below only reacts
+# AFTER a 429; for a ~100-ticker universe (13 batches of 8) fired back to
+# back with no gap, most batches got 429'd on their very first attempt,
+# starving out real GDELT coverage in favor of whatever other provider
+# (Marketaux) has no such limit. Pacing proactively avoids triggering the
+# 429 in the first place, across BOTH fetch_articles' batches and
+# fetch_thematic — same provider instance, same shared limit.
+_MIN_REQUEST_INTERVAL_SECONDS = 5.0
 
 
 class GDELTRateLimitError(Exception):
@@ -35,6 +45,10 @@ class GDELTNewsProvider(NewsProvider):
         # (after exhausting retries) — callers can log this for visibility
         # even though a partial fetch does not raise (see fetch_articles).
         self.last_failed_tickers: list[str] = []
+        # Shared pacing state across every real request this instance makes
+        # (both fetch_articles' batches and fetch_thematic) — see
+        # _MIN_REQUEST_INTERVAL_SECONDS.
+        self._last_request_at: float | None = None
 
     def fetch_articles(
         self, since: datetime, tickers: dict[str, str] | None = None
@@ -99,6 +113,14 @@ class GDELTNewsProvider(NewsProvider):
             matched_tickers=matched_tickers,
         )
 
+    def _wait_for_rate_limit(self) -> None:
+        if self._last_request_at is not None:
+            elapsed = time.monotonic() - self._last_request_at
+            remaining = _MIN_REQUEST_INTERVAL_SECONDS - elapsed
+            if remaining > 0:
+                time.sleep(remaining)
+        self._last_request_at = time.monotonic()
+
     @retry(
         retry=retry_if_exception_type(GDELTRateLimitError),
         wait=wait_exponential(multiplier=2, min=5, max=60),
@@ -115,6 +137,7 @@ class GDELTNewsProvider(NewsProvider):
             "startdatetime": since.astimezone(timezone.utc).strftime("%Y%m%d%H%M%S"),
             "enddatetime": datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
         }
+        self._wait_for_rate_limit()
         response = client.get(_BASE_URL, params=params)
         if response.status_code == 429:
             logger.warning("GDELT rate limit hit, backing off")
