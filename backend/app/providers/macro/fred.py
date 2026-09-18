@@ -33,16 +33,23 @@ class MacroObservation:
 class FREDMacroProvider:
     """FRED (spec §4, MacroDataProvider) — real API, free key.
 
-    Point-in-time vintages, done correctly: pass a WIDE realtime_start/
-    realtime_end query window (rather than the default, which is today/today
-    and only returns the current vintage — the bug this replaced). FRED's
-    default output_type=1 then returns one row per (observation_date,
-    vintage) pair actually observed within that window, each carrying its
-    own real realtime_start/realtime_end — e.g. CPIAUCSL for Jan 2024 comes
-    back as three separate rows (first published 2024-02-13, revised
-    2025-02-12, revised again 2026-02-13), each with the correct value for
-    that vintage. This was verified against the live API before relying on
-    it: an earlier attempt used output_type=2, whose response is a dynamic
+    Point-in-time vintages, done correctly: pass a WIDE realtime_start, and
+    deliberately omit realtime_end (rather than the default when BOTH are
+    omitted, which is today/today and only returns the current vintage —
+    the bug this replaced). Omitting just realtime_end makes FRED treat it
+    as unbounded, which is safe — FRED can't return a vintage that doesn't
+    exist yet regardless of what end date is requested, so this returns
+    every real vintage published up to now without this client ever having
+    to compute "now" itself (see get_observations_with_vintages' comment:
+    an earlier version passed date.today() explicitly and got real 400s
+    from a UTC/ET calendar-day boundary mismatch). FRED's default
+    output_type=1 then returns one row per (observation_date, vintage) pair
+    actually observed within that window, each carrying its own real
+    realtime_start/realtime_end — e.g. CPIAUCSL for Jan 2024 comes back as
+    three separate rows (first published 2024-02-13, revised 2025-02-12,
+    revised again 2026-02-13), each with the correct value for that
+    vintage. This was verified against the live API before relying on it:
+    an earlier attempt used output_type=2, whose response is a dynamic
     `{series_id}_{vintage_date}` column per vintage — real but needlessly
     complex parsing next to this documented, standard approach.
     """
@@ -65,7 +72,6 @@ class FREDMacroProvider:
         revised months after the fact would otherwise have its earliest
         vintage excluded).
         """
-        today = date.today()
         observations: list[MacroObservation] = []
         with httpx.Client(timeout=self._timeout) as client:
             for series_id in series_ids:
@@ -76,7 +82,16 @@ class FREDMacroProvider:
                     "sort_order": "asc",
                     "observation_start": observation_start.isoformat(),
                     "realtime_start": vintage_start.isoformat(),
-                    "realtime_end": today.isoformat(),
+                    # realtime_end deliberately omitted — see class
+                    # docstring. Verified against the live API: FRED treats
+                    # a missing realtime_end as unbounded (echoes back
+                    # "9999-12-31"), not "today", and still only returns
+                    # vintages that actually exist. An earlier version sent
+                    # date.today() explicitly here and got a real 400 from
+                    # this job's own scheduled run time (20:30 ET = 00:30
+                    # UTC the next day) — right at the UTC/ET calendar-day
+                    # boundary, so the container's UTC "today" was one day
+                    # ahead of FRED's own reference at that exact moment.
                 }
 
                 response = client.get(_BASE_URL, params=params)
