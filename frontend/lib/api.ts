@@ -181,6 +181,15 @@ export interface TopNewsResponse {
   items: TopNewsItem[];
 }
 
+export interface NewsHistoryDay {
+  date: string;
+  items: TopNewsItem[];
+}
+
+export interface NewsHistoryResponse {
+  days: NewsHistoryDay[];
+}
+
 async function getJson<T>(url: string, init?: RequestInit): Promise<T | null> {
   const response = await fetch(url, { cache: "no-store", ...init });
   if (response.status === 404) return null;
@@ -214,4 +223,5 @@ export const api = {
     getJson<PerformanceSummary>(`${SERVER_API_BASE}/api/v1/performance/summary?window=${window}`),
   modelVersions: () => getJson<ModelVersionListResponse>(`${SERVER_API_BASE}/api/v1/model/versions`),
   topNews: (limit = 20) => getJson<TopNewsResponse>(`${SERVER_API_BASE}/api/v1/news/top?limit=${limit}`),
+  newsHistory: (days = 7) => getJson<NewsHistoryResponse>(`${SERVER_API_BASE}/api/v1/news/history?days=${days}`),
 };

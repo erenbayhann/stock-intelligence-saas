@@ -24,3 +24,12 @@ class TopNewsItem(BaseModel):
 
 class TopNewsResponse(BaseModel):
     items: list[TopNewsItem]
+
+
+class NewsHistoryDay(BaseModel):
+    date: str
+    items: list[TopNewsItem]
+
+
+class NewsHistoryResponse(BaseModel):
+    days: list[NewsHistoryDay]

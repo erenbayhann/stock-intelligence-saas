@@ -10,6 +10,7 @@ from app.services.news_service import (
     TOP_NEWS_LOOKBACK_HOURS,
     build_ticker_search_phrases,
     classify_unprocessed_articles,
+    get_news_history,
     get_top_news,
     store_articles,
 )
@@ -210,3 +211,60 @@ def test_get_top_news_excludes_unclassified_links(db_session):
     store_articles(db_session, [_article("https://example.com/unclassified", matched=("AAPL",))], ticker_to_security_id)
 
     assert get_top_news(db_session, limit=10) == []
+
+
+def test_get_news_history_buckets_by_day_and_excludes_today(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    now = datetime.now(timezone.utc)
+    today_midnight = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+
+    yesterday_ts = today_midnight - timedelta(hours=12)
+    two_days_ago_ts = today_midnight - timedelta(days=2, hours=12)
+    too_old_ts = today_midnight - timedelta(days=10)
+
+    _classified_article(
+        db_session, aapl_id, "https://example.com/yesterday", relevance=0.9, importance=0.9,
+        published_time=yesterday_ts,
+    )
+    _classified_article(
+        db_session, aapl_id, "https://example.com/two-days-ago", relevance=0.5, importance=0.5,
+        published_time=two_days_ago_ts,
+    )
+    _classified_article(
+        db_session, aapl_id, "https://example.com/today", relevance=1.0, importance=1.0,
+        published_time=today_midnight + timedelta(hours=1),
+    )
+    _classified_article(
+        db_session, aapl_id, "https://example.com/too-old", relevance=1.0, importance=1.0,
+        published_time=too_old_ts,
+    )
+
+    history = get_news_history(db_session, days=7)
+
+    dates = [day["date"] for day in history]
+    assert two_days_ago_ts.date().isoformat() in dates
+    assert yesterday_ts.date().isoformat() in dates
+    assert today_midnight.date().isoformat() not in dates  # today excluded
+    assert too_old_ts.date().isoformat() not in dates  # outside window
+    # most recent day first
+    assert dates == sorted(dates, reverse=True)
+
+
+def test_get_news_history_caps_items_per_day(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    yesterday_noon = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0) - timedelta(days=1)
+
+    for i in range(8):
+        _classified_article(
+            db_session, aapl_id, f"https://example.com/day-{i}", relevance=0.5, importance=0.5 + i * 0.01,
+            published_time=yesterday_noon,
+        )
+
+    history = get_news_history(db_session, days=7, per_day_limit=5)
+
+    assert len(history) == 1
+    assert len(history[0]["items"]) == 5
+    # highest score first
+    assert history[0]["items"][0]["score"] >= history[0]["items"][-1]["score"]

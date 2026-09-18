@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 _PARENTHETICAL_SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
 
 TOP_NEWS_LOOKBACK_HOURS = 48
+NEWS_HISTORY_DAYS = 7
+NEWS_HISTORY_PER_DAY_LIMIT = 5
 
 
 def build_ticker_search_phrases(db: Session) -> dict[str, str]:
@@ -223,6 +225,21 @@ def classify_unprocessed_articles(
     }
 
 
+def _news_item(article: NewsArticle, link: NewsCompanyLink, ticker: str, name: str) -> dict:
+    return {
+        "ticker": ticker,
+        "company_name": name,
+        "title": article.title,
+        "url": article.url,
+        "source": article.source,
+        "published_time": article.published_time,
+        "sentiment": float(link.sentiment) if link.sentiment is not None else None,
+        "event_category": link.event_category,
+        "importance": float(link.importance),
+        "score": round(float(link.relevance or 0) * float(link.importance), 4),
+    }
+
+
 def get_top_news(db: Session, limit: int = 20) -> list[dict]:
     """Independent of the ranking model (spec §12/§15) — this surfaces
     whichever classified headlines the LLM itself scored as most
@@ -247,18 +264,41 @@ def get_top_news(db: Session, limit: int = 20) -> list[dict]:
         .limit(limit)
     ).all()
 
+    return [_news_item(article, link, ticker, name) for article, link, ticker, name in rows]
+
+
+def get_news_history(
+    db: Session, days: int = NEWS_HISTORY_DAYS, per_day_limit: int = NEWS_HISTORY_PER_DAY_LIMIT
+) -> list[dict]:
+    """"Last 7 Days" browse view for the news digest — same relevance x
+    importance scoring as get_top_news, but bucketed by calendar day for the
+    trailing `days` days *before* today (today is already covered by the
+    "Today" view, get_top_news). Independent of the ranking model, same as
+    get_top_news — this never feeds train_model/generate_predictions.
+    """
+    today = datetime.now(timezone.utc).date()
+    start = datetime.combine(today - timedelta(days=days), datetime.min.time(), tzinfo=timezone.utc)
+    end = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
+
+    rows = db.execute(
+        select(NewsArticle, NewsCompanyLink, Security.ticker, Company.name)
+        .join(NewsCompanyLink, NewsCompanyLink.news_article_id == NewsArticle.id)
+        .join(Security, Security.id == NewsCompanyLink.security_id)
+        .join(Company, Company.id == Security.company_id)
+        .where(
+            NewsArticle.is_duplicate_of.is_(None),
+            NewsArticle.published_time >= start,
+            NewsArticle.published_time < end,
+            NewsCompanyLink.importance.is_not(None),
+        )
+    ).all()
+
+    by_day: dict[str, list[dict]] = {}
+    for article, link, ticker, name in rows:
+        day_key = article.published_time.date().isoformat()
+        by_day.setdefault(day_key, []).append(_news_item(article, link, ticker, name))
+
     return [
-        {
-            "ticker": ticker,
-            "company_name": name,
-            "title": article.title,
-            "url": article.url,
-            "source": article.source,
-            "published_time": article.published_time,
-            "sentiment": float(link.sentiment) if link.sentiment is not None else None,
-            "event_category": link.event_category,
-            "importance": float(link.importance),
-            "score": round(float(link.relevance or 0) * float(link.importance), 4),
-        }
-        for article, link, ticker, name in rows
+        {"date": day, "items": sorted(items, key=lambda x: x["score"], reverse=True)[:per_day_limit]}
+        for day, items in sorted(by_day.items(), reverse=True)
     ]
