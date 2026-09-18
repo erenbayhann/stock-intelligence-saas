@@ -1,3 +1,6 @@
+// Matches the backend's _NEUTRAL_SENTIMENT_THRESHOLD (app/services/news_service.py).
+export const NEUTRAL_SENTIMENT_THRESHOLD = 0.15;
+
 // Neutral labels by design — "Bullish/Bearish" reads as a directional trading
 // call, which this isn't. This describes the tone of a single headline, not
 // a recommendation.
@@ -9,8 +12,8 @@ export function SentimentBadge({ sentiment }: { sentiment: number | null }) {
       </span>
     );
   }
-  const isPositive = sentiment > 0.15;
-  const isNegative = sentiment < -0.15;
+  const isPositive = sentiment > NEUTRAL_SENTIMENT_THRESHOLD;
+  const isNegative = sentiment < -NEUTRAL_SENTIMENT_THRESHOLD;
   const label = isPositive ? "Positive" : isNegative ? "Negative" : "Neutral";
   const className = isPositive
     ? "bg-green text-hero-ink"
