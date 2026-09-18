@@ -215,6 +215,38 @@ def test_get_top_news_excludes_unclassified_links(db_session):
     assert get_top_news(db_session, limit=10) == []
 
 
+def test_get_top_news_attaches_realized_outcome_when_session_already_closed(db_session):
+    # Regression: an article from earlier in the 48h lookback window can
+    # already have a closed reacting session by the time /news/top is
+    # requested — outcome attachment must not be skipped just because this
+    # is the "today" view rather than history.
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    seed_benchmarks(db_session)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
+
+    published_time = datetime.now(timezone.utc) - timedelta(hours=30)
+    prior_ts = published_time - timedelta(hours=4)
+    reacting_ts = published_time + timedelta(hours=6)  # closed well within the 48h lookback
+
+    db_session.add_all([
+        _bar(aapl_id, prior_ts, 100.0), _bar(aapl_id, reacting_ts, 105.0),
+        _bar(spy_id, prior_ts, 100.0), _bar(spy_id, reacting_ts, 101.0),
+    ])
+    db_session.commit()
+
+    _classified_article(
+        db_session, aapl_id, "https://example.com/already-closed",
+        relevance=0.9, importance=0.9, sentiment=0.8, published_time=published_time,
+    )
+
+    item = get_top_news(db_session, limit=10)[0]
+
+    assert item["actual_return"] == pytest.approx(0.05)
+    assert item["benchmark_return"] == pytest.approx(0.01)
+    assert item["direction_correct"] is True
+
+
 def test_get_news_history_buckets_by_day_and_excludes_today(db_session):
     seed_universe(db_session, SAMPLE_UNIVERSE)
     aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
@@ -305,7 +337,7 @@ def test_get_news_history_attaches_realized_outcome_when_session_closed(db_sessi
     item = history[0]["items"][0]
 
     assert item["actual_return"] == pytest.approx(0.05)
-    assert item["vs_benchmark"] == pytest.approx(0.04)
+    assert item["benchmark_return"] == pytest.approx(0.01)
     assert item["direction_correct"] is True  # positive sentiment, stock actually went up
 
 
@@ -325,7 +357,7 @@ def test_get_news_history_outcome_is_none_when_session_hasnt_closed_yet(db_sessi
     item = history[0]["items"][0]
 
     assert item["actual_return"] is None
-    assert item["vs_benchmark"] is None
+    assert item["benchmark_return"] is None
     assert item["direction_correct"] is None
 
 

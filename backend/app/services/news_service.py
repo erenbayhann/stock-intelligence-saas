@@ -242,8 +242,11 @@ def _news_item(article: NewsArticle, link: NewsCompanyLink, ticker: str, name: s
         "importance": float(link.importance),
         "score": round(float(link.relevance or 0) * float(link.importance), 4),
     }
-    item.update(outcome or {"actual_return": None, "vs_benchmark": None, "direction_correct": None})
+    item.update(outcome or _PENDING_OUTCOME)
     return item
+
+
+_PENDING_OUTCOME = {"actual_return": None, "benchmark_return": None, "direction_correct": None}
 
 
 def _realized_outcome(
@@ -254,19 +257,25 @@ def _realized_outcome(
     news signal itself — never fed back into train_model/generate_predictions
     (spec §12/§15 exclude news from the ranking model's own feature set until
     its rollout bar is met; this is unrelated, purely a display-side check).
-    Compared against the stock's own realized return, not excess-vs-benchmark
-    like the ranking model's evaluation, because sentiment is a claim about
-    this specific stock's reaction, not a claim about beating the market.
-    Every field is None when the reacting session hasn't closed yet, or when
-    sentiment is too close to neutral to make a directional claim at all.
+    Reports the stock's own realized return AND the benchmark's own realized
+    return side by side (not a pre-computed excess/difference) — more
+    directly readable than an abstract "vs S&P 500" delta. direction_correct
+    is still graded against the stock's own return direction, not excess vs.
+    benchmark, because sentiment is a claim about this specific stock's
+    reaction, not a claim about beating the market. Every field is None when
+    the reacting session hasn't closed yet (this is time-based, not tab-based
+    — an article from earlier today can already have a closed reacting
+    session by evening, so this runs for get_top_news too, not just history),
+    or direction_correct alone is None when sentiment is too close to neutral
+    to make a directional claim at all.
     """
     session_date = next_trading_session_after(db, published_time)
     if session_date is None:
-        return {"actual_return": None, "vs_benchmark": None, "direction_correct": None}
+        return dict(_PENDING_OUTCOME)
 
     label = compute_realized_label(db, security_id, session_date)
     if label is None:
-        return {"actual_return": None, "vs_benchmark": None, "direction_correct": None}
+        return dict(_PENDING_OUTCOME)
 
     direction_correct = None
     if sentiment is not None and abs(sentiment) >= _NEUTRAL_SENTIMENT_THRESHOLD:
@@ -274,7 +283,7 @@ def _realized_outcome(
 
     return {
         "actual_return": label["actual_return"],
-        "vs_benchmark": label["actual_excess_return"],
+        "benchmark_return": label["benchmark_return"],
         "direction_correct": direction_correct,
     }
 
@@ -285,6 +294,9 @@ def get_top_news(db: Session, limit: int = 20) -> list[dict]:
     relevant+important for a company in the last TOP_NEWS_LOOKBACK_HOURS,
     ranked by relevance x importance. Not a prediction and not fed into
     train_model/generate_predictions; a same-day news salience digest only.
+    Also attaches the realized outcome per item, same as get_news_history —
+    an article from earlier in the lookback window can already have a
+    closed reacting session by the time this is called.
     """
     since = datetime.now(timezone.utc) - timedelta(hours=TOP_NEWS_LOOKBACK_HOURS)
     score = NewsCompanyLink.relevance * NewsCompanyLink.importance
@@ -303,7 +315,12 @@ def get_top_news(db: Session, limit: int = 20) -> list[dict]:
         .limit(limit)
     ).all()
 
-    return [_news_item(article, link, ticker, name) for article, link, ticker, name in rows]
+    items = []
+    for article, link, ticker, name in rows:
+        sentiment = float(link.sentiment) if link.sentiment is not None else None
+        outcome = _realized_outcome(db, link.security_id, article.published_time, sentiment)
+        items.append(_news_item(article, link, ticker, name, outcome))
+    return items
 
 
 def get_news_history(

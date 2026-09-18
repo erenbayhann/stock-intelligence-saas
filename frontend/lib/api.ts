@@ -175,10 +175,10 @@ export interface TopNewsItem {
   event_category: string | null;
   importance: number;
   score: number;
-  // Only ever populated in newsHistory() (a past, closed session) — always
-  // null from topNews(), whose session hasn't closed yet.
+  // Populated once the reacting session has actually closed — can be
+  // non-null from topNews() too, not just newsHistory().
   actual_return: number | null;
-  vs_benchmark: number | null;
+  benchmark_return: number | null;
   direction_correct: boolean | null;
 }
 

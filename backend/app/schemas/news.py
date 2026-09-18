@@ -20,11 +20,12 @@ class TopNewsItem(BaseModel):
     event_category: str | None
     importance: float
     score: float
-    # Realized outcome — only ever populated in /news/history (a past,
-    # already-closed reacting session); always None in /news/top, mirroring
-    # spec §13's rule that a live/current view never shows result fields.
+    # Realized outcome, populated once the reacting session has actually
+    # closed (time-based, not tab-based — an article can already have a
+    # closed reacting session in /news/top too). Both returns shown directly
+    # side by side rather than a pre-computed excess/difference.
     actual_return: float | None = None
-    vs_benchmark: float | None = None
+    benchmark_return: float | None = None
     direction_correct: bool | None = None
 
 

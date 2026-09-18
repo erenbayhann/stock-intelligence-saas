@@ -53,12 +53,12 @@ export function NewsList({ items, emptyMessage }: { items: TopNewsItem[]; emptyM
           {item.actual_return !== null && (
             <div className="flex items-center gap-4 mt-2.5 pt-2.5 border-t border-row-border">
               <div>
-                <div className="text-[10px] text-ink-faint uppercase tracking-wide mb-0.5">Actual</div>
+                <div className="text-[10px] text-ink-faint uppercase tracking-wide mb-0.5">{item.ticker}</div>
                 <SignedValue value={item.actual_return} />
               </div>
               <div>
-                <div className="text-[10px] text-ink-faint uppercase tracking-wide mb-0.5">vs S&amp;P 500</div>
-                <SignedValue value={item.vs_benchmark} />
+                <div className="text-[10px] text-ink-faint uppercase tracking-wide mb-0.5">S&amp;P 500</div>
+                <SignedValue value={item.benchmark_return} />
               </div>
               <div>
                 <div className="text-[10px] text-ink-faint uppercase tracking-wide mb-0.5">Called it?</div>
