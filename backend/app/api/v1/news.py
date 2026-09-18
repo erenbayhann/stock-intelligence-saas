@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.news import NewsHistoryResponse, TopNewsResponse
-from app.services.news_service import get_news_history, get_top_news
+from app.schemas.news import NewsHistoryResponse, NewsStats, TopNewsResponse
+from app.services.news_service import get_news_history, get_news_stats, get_top_news
 
 router = APIRouter()
 
@@ -16,3 +16,8 @@ def news_top(limit: int = Query(default=5, ge=1, le=100), db: Session = Depends(
 @router.get("/news/history", response_model=NewsHistoryResponse)
 def news_history(days: int = Query(default=7, ge=1, le=30), db: Session = Depends(get_db)):
     return {"days": get_news_history(db, days=days)}
+
+
+@router.get("/news/stats", response_model=NewsStats)
+def news_stats(days: int = Query(default=7, ge=1, le=30), db: Session = Depends(get_db)):
+    return get_news_stats(db, days=days)

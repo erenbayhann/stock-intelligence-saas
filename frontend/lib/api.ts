@@ -195,6 +195,12 @@ export interface NewsHistoryResponse {
   days: NewsHistoryDay[];
 }
 
+export interface NewsStats {
+  total_classified: number;
+  graded: number;
+  accuracy_pct: number | null;
+}
+
 async function getJson<T>(url: string, init?: RequestInit): Promise<T | null> {
   const response = await fetch(url, { cache: "no-store", ...init });
   if (response.status === 404) return null;
@@ -229,4 +235,5 @@ export const api = {
   modelVersions: () => getJson<ModelVersionListResponse>(`${SERVER_API_BASE}/api/v1/model/versions`),
   topNews: (limit = 20) => getJson<TopNewsResponse>(`${SERVER_API_BASE}/api/v1/news/top?limit=${limit}`),
   newsHistory: (days = 7) => getJson<NewsHistoryResponse>(`${SERVER_API_BASE}/api/v1/news/history?days=${days}`),
+  newsStats: (days = 7) => getJson<NewsStats>(`${SERVER_API_BASE}/api/v1/news/stats?days=${days}`),
 };

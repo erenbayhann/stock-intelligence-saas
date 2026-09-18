@@ -4,33 +4,14 @@ import { useState } from "react";
 import type { NewsHistoryDay, TopNewsItem } from "@/lib/api";
 import { formatLongDate } from "@/lib/format";
 import { NewsList } from "@/components/NewsList";
-import { NEUTRAL_SENTIMENT_THRESHOLD } from "@/components/SentimentBadge";
-import { StatTile } from "@/components/StatTile";
 
 type Tab = "today" | "history";
 
-function NewsStats({ items }: { items: TopNewsItem[] }) {
-  const total = items.length;
-  const positive = items.filter((i) => i.sentiment !== null && i.sentiment > NEUTRAL_SENTIMENT_THRESHOLD).length;
-  const graded = items.filter((i) => i.direction_correct !== null);
-  const correctPct = graded.length > 0 ? Math.round((graded.filter((i) => i.direction_correct).length / graded.length) * 100) : null;
-
-  return (
-    <div className="grid grid-cols-3 gap-3.5 mb-6">
-      <StatTile value={String(total)} label="Headlines shown" variant="green" />
-      <StatTile value={total > 0 ? `${Math.round((positive / total) * 100)}%` : "—"} label="Positive sentiment" variant="blue" />
-      <StatTile value={correctPct !== null ? `${correctPct}%` : "—"} label="Calls correct so far" variant="white" />
-    </div>
-  );
-}
-
 export function NewsTabs({ today, history }: { today: TopNewsItem[]; history: NewsHistoryDay[] }) {
   const [tab, setTab] = useState<Tab>("today");
-  const activeItems = tab === "today" ? today : history.flatMap((d) => d.items);
 
   return (
     <div>
-      <NewsStats items={activeItems} />
       <div className="flex items-center gap-2 mb-4">
         <button
           onClick={() => setTab("today")}

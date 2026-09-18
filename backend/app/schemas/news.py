@@ -40,3 +40,9 @@ class NewsHistoryDay(BaseModel):
 
 class NewsHistoryResponse(BaseModel):
     days: list[NewsHistoryDay]
+
+
+class NewsStats(BaseModel):
+    total_classified: int
+    graded: int
+    accuracy_pct: float | None

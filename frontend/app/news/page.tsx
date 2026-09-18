@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { NewsTabs } from "@/components/NewsTabs";
+import { StatTile } from "@/components/StatTile";
 
 export const metadata = {
   title: "News",
 };
 
 export default async function NewsPage() {
-  const [news, history] = await Promise.all([api.topNews(5), api.newsHistory(7)]);
+  const [news, history, stats] = await Promise.all([api.topNews(5), api.newsHistory(7), api.newsStats(7)]);
 
   return (
     <div>
@@ -28,6 +29,19 @@ export default async function NewsPage() {
         <Link href="/methodology" className="text-ink-soft underline hover:text-ink">
           See Methodology.
         </Link>
+      </div>
+
+      {/* A real 7-day track record — every classified signal, not just the
+          5 currently shown, so this can't be a tiny, cherry-picked-looking
+          sample (spec 14/23: radical transparency, no cherry-picking). */}
+      <div className="grid grid-cols-3 gap-3.5 mb-6">
+        <StatTile value={String(stats?.total_classified ?? "—")} label="Signals classified · 7d" variant="green" />
+        <StatTile
+          value={stats?.accuracy_pct !== null && stats?.accuracy_pct !== undefined ? `${Math.round(stats.accuracy_pct * 100)}%` : "—"}
+          label="Directional accuracy · 7d"
+          variant="blue"
+        />
+        <StatTile value={String(stats?.graded ?? "—")} label="Calls graded so far" variant="white" />
       </div>
 
       <NewsTabs today={news?.items ?? []} history={history?.days ?? []} />

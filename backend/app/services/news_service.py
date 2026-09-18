@@ -370,3 +370,38 @@ def get_news_history(
             items.append(_news_item(article, link, ticker, name, outcome))
         result.append({"date": day, "items": items})
     return result
+
+
+def get_news_stats(db: Session, days: int = NEWS_HISTORY_DAYS) -> dict:
+    """Aggregate track-record stats over the trailing `days` days —
+    deliberately over EVERY classified (article, company) link in the
+    window, not just whatever's currently surfaced in the top-5-per-day
+    digest, so this reflects genuine volume/accuracy rather than a tiny,
+    5-item sample that swings wildly (e.g. 100% or 0% from one call).
+    """
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = db.execute(
+        select(NewsArticle, NewsCompanyLink)
+        .join(NewsCompanyLink, NewsCompanyLink.news_article_id == NewsArticle.id)
+        .where(
+            NewsArticle.is_duplicate_of.is_(None),
+            NewsArticle.published_time >= since,
+            NewsCompanyLink.importance.is_not(None),
+        )
+    ).all()
+
+    graded = 0
+    correct = 0
+    for article, link in rows:
+        sentiment = float(link.sentiment) if link.sentiment is not None else None
+        outcome = _realized_outcome(db, link.security_id, article.published_time, sentiment)
+        if outcome["direction_correct"] is not None:
+            graded += 1
+            if outcome["direction_correct"]:
+                correct += 1
+
+    return {
+        "total_classified": len(rows),
+        "graded": graded,
+        "accuracy_pct": (correct / graded) if graded > 0 else None,
+    }

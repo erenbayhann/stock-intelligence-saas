@@ -13,6 +13,7 @@ from app.services.news_service import (
     build_ticker_search_phrases,
     classify_unprocessed_articles,
     get_news_history,
+    get_news_stats,
     get_top_news,
     store_articles,
 )
@@ -393,3 +394,72 @@ def test_get_news_history_direction_correct_is_none_for_neutral_sentiment(db_ses
 
     assert item["actual_return"] == pytest.approx(0.05)  # outcome is still reported...
     assert item["direction_correct"] is None  # ...but no directional claim to grade
+
+
+def test_get_news_stats_counts_every_classified_link_not_just_top_n(db_session):
+    # Regression: the stats must reflect the FULL window, not the tiny
+    # top-5-per-day sample shown in the digest — seed more than per_day_limit
+    # worth of links on one day to prove nothing gets silently dropped.
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    yesterday = datetime.now(timezone.utc) - timedelta(hours=26)
+
+    for i in range(8):
+        _classified_article(
+            db_session, aapl_id, f"https://example.com/stats-{i}",
+            relevance=0.5, importance=0.5, published_time=yesterday,
+        )
+
+    stats = get_news_stats(db_session, days=7)
+
+    assert stats["total_classified"] == 8
+
+
+def test_get_news_stats_accuracy_over_graded_calls_only(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    seed_benchmarks(db_session)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
+
+    # Far enough in the past that the seeded "reacting" bar itself lands
+    # before "now" — a bar dated in the future would also (correctly)
+    # satisfy the second, recently-published article's own lookup below,
+    # which defeats the point of that article being the "still pending" one.
+    published_time = datetime.now(timezone.utc) - timedelta(hours=60)
+    prior_ts = published_time - timedelta(hours=30)
+    reacting_ts = published_time + timedelta(hours=30)
+    db_session.add_all([
+        _bar(aapl_id, prior_ts, 100.0), _bar(aapl_id, reacting_ts, 105.0),  # +5%, positive sentiment -> correct
+        _bar(spy_id, prior_ts, 100.0), _bar(spy_id, reacting_ts, 101.0),
+    ])
+    db_session.commit()
+
+    _classified_article(
+        db_session, aapl_id, "https://example.com/stats-correct",
+        relevance=0.9, importance=0.9, sentiment=0.8, published_time=published_time,
+    )
+    # Ungraded (still pending — no reacting session ingested for this one).
+    _classified_article(
+        db_session, aapl_id, "https://example.com/stats-pending",
+        relevance=0.9, importance=0.9, sentiment=0.8, published_time=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+
+    stats = get_news_stats(db_session, days=7)
+
+    assert stats["total_classified"] == 2
+    assert stats["graded"] == 1
+    assert stats["accuracy_pct"] == pytest.approx(1.0)
+
+
+def test_get_news_stats_accuracy_is_none_when_nothing_graded_yet(db_session):
+    seed_universe(db_session, SAMPLE_UNIVERSE)
+    aapl_id = db_session.scalar(select(Security).where(Security.ticker == "AAPL")).id
+    _classified_article(
+        db_session, aapl_id, "https://example.com/stats-only-pending",
+        relevance=0.9, importance=0.9, published_time=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+
+    stats = get_news_stats(db_session, days=7)
+
+    assert stats["graded"] == 0
+    assert stats["accuracy_pct"] is None
