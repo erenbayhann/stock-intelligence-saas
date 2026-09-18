@@ -226,8 +226,11 @@ def test_get_top_news_attaches_realized_outcome_when_session_already_closed(db_s
     spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
 
     published_time = datetime.now(timezone.utc) - timedelta(hours=30)
-    prior_ts = published_time - timedelta(hours=4)
-    reacting_ts = published_time + timedelta(hours=6)  # closed well within the 48h lookback
+    # +/-30h (not +/-4h/+24h) so these safely land on the correct side of
+    # next_trading_session_after's real ET-close boundary regardless of
+    # what time of day the test suite actually runs.
+    prior_ts = published_time - timedelta(hours=30)
+    reacting_ts = published_time + timedelta(hours=30)
 
     db_session.add_all([
         _bar(aapl_id, prior_ts, 100.0), _bar(aapl_id, reacting_ts, 105.0),
@@ -319,8 +322,11 @@ def test_get_news_history_attaches_realized_outcome_when_session_closed(db_sessi
     spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
 
     published_time = datetime.now(timezone.utc) - timedelta(hours=26)
-    prior_ts = published_time - timedelta(hours=4)
-    reacting_ts = published_time + timedelta(hours=24)  # the next session's close, after publication
+    # +/-30h so these safely land on the correct side of
+    # next_trading_session_after's real ET-close boundary regardless of
+    # what time of day the test suite actually runs.
+    prior_ts = published_time - timedelta(hours=30)
+    reacting_ts = published_time + timedelta(hours=30)  # the next session's close, after publication
 
     db_session.add_all([
         _bar(aapl_id, prior_ts, 100.0), _bar(aapl_id, reacting_ts, 105.0),  # AAPL: +5%
@@ -368,8 +374,8 @@ def test_get_news_history_direction_correct_is_none_for_neutral_sentiment(db_ses
     spy_id = db_session.scalar(select(Security).where(Security.ticker == "SPY")).id
 
     published_time = datetime.now(timezone.utc) - timedelta(hours=26)
-    prior_ts = published_time - timedelta(hours=4)
-    reacting_ts = published_time + timedelta(hours=24)
+    prior_ts = published_time - timedelta(hours=30)
+    reacting_ts = published_time + timedelta(hours=30)
 
     db_session.add_all([
         _bar(aapl_id, prior_ts, 100.0), _bar(aapl_id, reacting_ts, 105.0),

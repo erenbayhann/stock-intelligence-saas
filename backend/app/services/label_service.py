@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.models.security import Security
 logger = logging.getLogger(__name__)
 
 BENCHMARK_TICKER = "SPY"
+_MARKET_CLOSE_HOUR_ET = 16
 
 
 def get_trading_days(db: Session, start: date, end: date) -> list[date]:
@@ -70,11 +72,26 @@ def _close_to_close_return(db: Session, security_id: int, target_session_date: d
 def next_trading_session_after(db: Session, after: datetime) -> date | None:
     """The first real trading day (per the benchmark's own regular-session
     bars, same "real trading days" source as get_trading_days) whose close
-    happens strictly after `after` — e.g. for overnight/after-hours news,
-    this is the next session; for news published intraday before that
-    session's close, it's that same session. None if no such bar exists yet
-    (session hasn't closed) — never guessed from a calendar.
+    happens at or after `after` and whose bar has actually been ingested —
+    e.g. for overnight/after-hours news, this is the next session; for news
+    published intraday before that session's real close, it's that same
+    session. None if no such bar exists yet (session hasn't closed, or
+    hasn't been ingested yet) — never guessed from a calendar.
+
+    Reasons in real close-time/calendar-date space, NOT by comparing `after`
+    against a bar's stored `ts` directly — a daily bar's `ts` is stamped at
+    a nominal start-of-day marker, not the real ~16:00 ET close (see
+    historical_as_of_cutoffs' docstring), so a raw ts comparison is wrong:
+    a real production bug found this way misclassified news published
+    later in the UTC day (but still hours before the real close) as
+    needing to wait an entire extra session, because its timestamp already
+    sat after that nominal marker.
     """
+    same_day_close = datetime(
+        after.year, after.month, after.day, _MARKET_CLOSE_HOUR_ET, tzinfo=ZoneInfo("America/New_York")
+    ).astimezone(timezone.utc)
+    candidate_date = after.date() if after < same_day_close else after.date() + timedelta(days=1)
+
     benchmark = db.scalar(select(Security).where(Security.ticker == BENCHMARK_TICKER))
     if benchmark is None:
         return None
@@ -83,7 +100,7 @@ def next_trading_session_after(db: Session, after: datetime) -> date | None:
         .where(
             MarketPrice.security_id == benchmark.id,
             MarketPrice.session_type == "regular",
-            MarketPrice.ts > after,
+            MarketPrice.ts >= datetime.combine(candidate_date, time.min, tzinfo=timezone.utc),
         )
         .order_by(MarketPrice.ts.asc())
         .limit(1)
