@@ -70,7 +70,7 @@ def main() -> None:
                     db,
                     severity="warning",
                     category="provider_error",
-                    message=f"GDELT per-ticker fetch: {len(gdelt.last_failed_tickers)} batch(es) failed after retries",
+                    message=f"GDELT per-ticker fetch: {len(gdelt.last_failed_tickers)} ticker(s) not covered (their batch failed or was abandoned)",
                     detail={"failed_tickers": gdelt.last_failed_tickers},
                     job_run_id=job_run.id,
                 )

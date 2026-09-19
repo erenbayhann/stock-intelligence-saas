@@ -79,3 +79,84 @@ def test_wait_for_rate_limit_sleeps_for_the_remaining_gap(mock_sleep):
     mock_sleep.assert_called_once()
     (waited,) = mock_sleep.call_args[0]
     assert 0 < waited <= 5.0
+
+
+def _mock_client(*responses_or_errors):
+    client = MagicMock()
+    client.__enter__.return_value = client
+    client.__exit__.return_value = False
+    client.get.side_effect = list(responses_or_errors)
+    return client
+
+
+@patch("app.providers.news.gdelt.time.sleep")
+def test_run_is_abandoned_after_consecutive_batch_failures(mock_sleep):
+    provider = GDELTNewsProvider(batch_size=1)
+    tickers = {t: f"{t} Holdings" for t in ["AAAA", "BBBB", "CCCC", "DDDD", "EEEE"]}
+    client = _mock_client(*[RuntimeError("dropped")] * 5)
+
+    with patch("app.providers.news.gdelt.httpx.Client", return_value=client):
+        with pytest.raises(Exception):
+            provider.fetch_articles(datetime.now(timezone.utc), tickers=tickers)
+
+    assert client.get.call_count == 3  # stopped hammering after 3 failures in a row
+    assert set(provider.last_failed_tickers) == set(tickers)  # ...and the gap is reported, not lost
+
+
+@patch("app.providers.news.gdelt.time.sleep")
+def test_a_success_resets_the_consecutive_failure_count(mock_sleep):
+    provider = GDELTNewsProvider(batch_size=1)
+    tickers = {t: f"{t} Holdings" for t in ["AAAA", "BBBB", "CCCC", "DDDD", "EEEE"]}
+    article = {"title": "AAAA Holdings up", "url": "https://x.com/a", "seendate": "20260910T120000Z"}
+    client = _mock_client(
+        RuntimeError("x"), RuntimeError("x"), _ok_response([article]), RuntimeError("x"), RuntimeError("x"),
+    )
+
+    with patch("app.providers.news.gdelt.httpx.Client", return_value=client):
+        articles = provider.fetch_articles(datetime.now(timezone.utc), tickers=tickers)
+
+    assert client.get.call_count == 5  # never 3 in a row, so every batch was still attempted
+    assert len(articles) == 1
+
+
+@patch("app.providers.news.gdelt.time.sleep")
+def test_a_rejected_query_is_not_retried_and_does_not_trip_the_breaker(mock_sleep):
+    provider = GDELTNewsProvider(batch_size=1)
+    tickers = {t: f"{t} Holdings" for t in ["AAAA", "BBBB", "CCCC", "DDDD"]}
+    rejected = MagicMock(status_code=200, text="The specified phrase is too short.\n")
+    rejected.raise_for_status.return_value = None
+    ok = _ok_response([{"title": "DDDD Holdings up", "url": "https://x.com/d", "seendate": "20260910T120000Z"}])
+    client = _mock_client(rejected, rejected, rejected, ok)
+
+    with patch("app.providers.news.gdelt.httpx.Client", return_value=client):
+        articles = provider.fetch_articles(datetime.now(timezone.utc), tickers=tickers)
+
+    assert client.get.call_count == 4  # one attempt each — no retries of a query that can never work
+    assert len(articles) == 1  # 3 rejected batches in a row did NOT abandon the run
+
+
+@patch("app.providers.news.gdelt.time.sleep")
+def test_phrases_below_gdelts_minimum_length_are_left_out_of_the_query(mock_sleep):
+    provider = GDELTNewsProvider()
+    client = _mock_client(_ok_response([]))
+
+    with patch("app.providers.news.gdelt.httpx.Client", return_value=client):
+        provider.fetch_articles(
+            datetime.now(timezone.utc), tickers={"UBER": "Uber", "AAPL": "Apple Inc.", "IBM": "IBM"}
+        )
+
+    query = client.get.call_args.kwargs["params"]["query"]
+    assert '"Apple Inc."' in query
+    assert "Uber" not in query and "IBM" not in query
+
+
+@patch("app.providers.news.gdelt.time.sleep")
+def test_a_batch_of_only_too_short_phrases_makes_no_request(mock_sleep):
+    provider = GDELTNewsProvider()
+    client = _mock_client()
+
+    with patch("app.providers.news.gdelt.httpx.Client", return_value=client):
+        articles = provider.fetch_articles(datetime.now(timezone.utc), tickers={"IBM": "IBM"})
+
+    assert articles == []
+    client.get.assert_not_called()

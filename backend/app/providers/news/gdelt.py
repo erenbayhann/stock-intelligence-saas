@@ -22,10 +22,27 @@ _MAX_RECORDS = 250  # GDELT's documented max for mode=artlist
 # 429 in the first place, across BOTH fetch_articles' batches and
 # fetch_thematic — same provider instance, same shared limit.
 _MIN_REQUEST_INTERVAL_SECONDS = 5.0
+# Live production evidence (2026-09-18): pacing alone was not enough — GDELT
+# kept refusing (429s across 14-50s backoffs, and outright dropped
+# connections) from Railway's shared egress IP. Retrying every remaining
+# batch through that just burned minutes per run and kept hammering an
+# already-refusing service, so after this many batches in a row fail, the
+# rest of the run is abandoned (and reported as failed, never silently lost).
+_MAX_CONSECUTIVE_BATCH_FAILURES = 3
+# GDELT rejects a phrase shorter than this outright ("The specified phrase is
+# too short." — observed live for "Uber"), which failed every other company
+# OR'd into the same batch with it.
+_MIN_PHRASE_LENGTH = 5
 
 
 class GDELTRateLimitError(Exception):
     pass
+
+
+class GDELTQueryError(Exception):
+    """GDELT understood the request and rejected the query itself (e.g. a
+    too-short phrase) — retrying the identical query can never succeed, so
+    unlike GDELTRateLimitError this is never retried."""
 
 
 class GDELTNewsProvider(NewsProvider):
@@ -62,11 +79,20 @@ class GDELTNewsProvider(NewsProvider):
         articles: list[RawArticle] = []
         items = list(tickers.items())
         self.last_failed_tickers = []
+        consecutive_failures = 0
         with httpx.Client(timeout=self._timeout) as client:
             for i in range(0, len(items), self._batch_size):
                 batch = dict(items[i : i + self._batch_size])
                 try:
                     articles.extend(self._fetch_batch(client, batch, since))
+                    consecutive_failures = 0
+                except GDELTQueryError:
+                    # Our query was bad, not GDELT down — doesn't count
+                    # toward the circuit breaker below.
+                    self.last_failed_tickers.extend(batch.keys())
+                    logger.warning(
+                        "GDELT rejected the query for tickers %s, skipping", list(batch.keys()), exc_info=True
+                    )
                 except Exception:
                     # One batch exhausting retries must never discard the
                     # articles already fetched from earlier batches in this
@@ -75,9 +101,20 @@ class GDELTNewsProvider(NewsProvider):
                     logger.warning(
                         "GDELT batch failed for tickers %s, skipping", list(batch.keys()), exc_info=True
                     )
+                    consecutive_failures += 1
+                    if consecutive_failures >= _MAX_CONSECUTIVE_BATCH_FAILURES:
+                        skipped = [ticker for ticker, _ in items[i + self._batch_size :]]
+                        self.last_failed_tickers.extend(skipped)
+                        logger.warning(
+                            "GDELT: %d batches failed in a row — abandoning this run, %d ticker(s) not attempted",
+                            consecutive_failures, len(skipped),
+                        )
+                        break
 
         if self.last_failed_tickers and not articles:
-            raise GDELTRateLimitError(f"all batches failed: {self.last_failed_tickers}")
+            raise GDELTRateLimitError(
+                f"no articles returned and {len(self.last_failed_tickers)} ticker(s) failed: {self.last_failed_tickers}"
+            )
         return articles
 
     def fetch_thematic(self, since: datetime, keywords: list[str]) -> list[RawArticle]:
@@ -92,7 +129,9 @@ class GDELTNewsProvider(NewsProvider):
     def _fetch_batch(
         self, client: httpx.Client, batch: dict[str, str], since: datetime
     ) -> list[RawArticle]:
-        phrases = sorted(set(batch.values()))
+        phrases = sorted({p for p in batch.values() if len(p) >= _MIN_PHRASE_LENGTH})
+        if not phrases:
+            return []
         query = "(" + " OR ".join(f'"{p}"' for p in phrases) + ") sourcelang:english"
         payload = self._get(client, query, since)
 
@@ -148,8 +187,11 @@ class GDELTNewsProvider(NewsProvider):
         # JSON when it's throttling — treat that the same as a real 429.
         text = response.text.lstrip()
         if not text.startswith("{"):
-            logger.warning("GDELT returned a non-JSON response, treating as rate limit: %s", text[:200])
-            raise GDELTRateLimitError()
+            if "limit requests" in text.lower():
+                logger.warning("GDELT returned a rate-limit notice, backing off: %s", text[:200])
+                raise GDELTRateLimitError()
+            logger.warning("GDELT rejected the query: %s", text[:200])
+            raise GDELTQueryError(text[:200])
 
         return response.json()
 
