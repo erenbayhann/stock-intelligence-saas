@@ -1,9 +1,9 @@
 """CLI entrypoint: python -m app.jobs.ingest_news
 
-Pulls recent news from GDELT (per-ticker batched + thematic) and Marketaux
-(broad market), normalizes/dedupes into news_articles + news_company_links,
-then runs Claude Haiku 4.5 extraction (spec §5) on whatever doesn't have it
-yet. Every provider/LLM failure is logged as a data_quality_alerts row and
+Pulls recent news from Yahoo Finance RSS (per ticker), GDELT (per-ticker
+batched + thematic), Marketaux (broad market) and Alpha Vantage, normalizes/
+dedupes into news_articles + news_company_links, then runs Claude Haiku 4.5
+extraction (spec §5) on whatever doesn't have it yet. Every provider/LLM failure is logged as a data_quality_alerts row and
 never crashes the job — see app.services.news_service.
 """
 
@@ -21,6 +21,7 @@ from app.providers.news.alpha_vantage import AlphaVantageNewsProvider
 from app.providers.news.base import RawArticle
 from app.providers.news.gdelt import GDELTNewsProvider
 from app.providers.news.marketaux import MarketauxNewsProvider
+from app.providers.news.yahoo_finance_rss import YahooFinanceRSSProvider
 from app.services.data_quality_service import record_alert
 from app.services.job_run_service import track_job_run
 from app.services.news_service import (
@@ -96,6 +97,28 @@ def main() -> None:
                         severity="error",
                         category="provider_error",
                         message=f"Marketaux fetch failed: {exc}",
+                        job_run_id=job_run.id,
+                    )
+
+            if settings.yahoo_rss_enabled:
+                yahoo = YahooFinanceRSSProvider(items_per_ticker=settings.yahoo_rss_items_per_ticker)
+                try:
+                    all_articles.extend(yahoo.fetch_articles(since, tickers=ticker_phrases))
+                except Exception as exc:
+                    record_alert(
+                        db,
+                        severity="error",
+                        category="provider_error",
+                        message=f"Yahoo Finance RSS fetch failed: {exc}",
+                        job_run_id=job_run.id,
+                    )
+                if yahoo.last_failed_tickers:
+                    record_alert(
+                        db,
+                        severity="warning",
+                        category="provider_error",
+                        message=f"Yahoo Finance RSS: {len(yahoo.last_failed_tickers)} ticker(s) not covered",
+                        detail={"failed_tickers": yahoo.last_failed_tickers},
                         job_run_id=job_run.id,
                     )
 

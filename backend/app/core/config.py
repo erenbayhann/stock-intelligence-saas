@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     news_llm_model: str = "claude-haiku-4-5"
     news_lookback_hours: int = 24
+    # Yahoo Finance per-ticker headline RSS: free, no key. Newest N headlines per
+    # ticker per sweep (the LLM classification cost scales with this).
+    yahoo_rss_enabled: bool = True
+    yahoo_rss_items_per_ticker: int = 4
 
     # Admin panel auth (spec §16): the ONLY access-gated area in the whole
     # product, since there are no user accounts at all. A single credential
