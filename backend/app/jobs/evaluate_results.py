@@ -1,7 +1,7 @@
 """CLI entrypoint: python -m app.jobs.evaluate_results
 
 Phase 7 (spec §26 item 7): computes realized outcomes for every prediction
-whose target session has closed (spec §13) — a prediction with no closing
+and every news pick whose target session has closed (spec §13) — a prediction with no closing
 data yet is correctly left unevaluated, not skipped due to a bug.
 """
 
@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import SessionLocal
 from app.services.job_run_service import track_job_run
+from app.services.news_pick_service import evaluate_pending_news_picks
 from app.services.result_evaluation_service import evaluate_pending_predictions
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ def main() -> None:
     db = SessionLocal()
     try:
         with track_job_run(db, JOB_NAME) as job_run:
-            result = evaluate_pending_predictions(db)
+            result = {**evaluate_pending_predictions(db), **evaluate_pending_news_picks(db)}
             job_run.job_metadata = result
     finally:
         db.close()

@@ -164,41 +164,59 @@ export interface ModelVersionListResponse {
   versions: ModelVersionSummary[];
 }
 
-export interface TopNewsItem {
-  ticker: string;
-  company_name: string;
+export interface NewsPickEvidence {
   title: string;
   url: string;
   source: string;
   published_time: string;
-  sentiment: number | null;
-  event_category: string | null;
+  sentiment: number;
   importance: number;
-  score: number;
-  // Populated once the reacting session has actually closed — can be
-  // non-null from topNews() too, not just newsHistory().
+  contribution: number;
+}
+
+export interface NewsPickItem {
+  rank: number;
+  ticker: string;
+  company_name: string;
+  news_score: number;
+  article_count: number;
+  positive_count: number;
+  negative_count: number;
+  avg_sentiment: number;
+  evidence: NewsPickEvidence[];
+  // Null until the session has closed and been evaluated.
   actual_return: number | null;
   benchmark_return: number | null;
-  direction_correct: boolean | null;
+  excess_return: number | null;
+  hit: boolean | null;
 }
 
-export interface TopNewsResponse {
-  items: TopNewsItem[];
+export interface NewsPickRun {
+  target_session_date: string;
+  generated_at: string;
+  as_of: string;
+  window_start: string;
+  candidates_scored: number;
+  reconstructed: boolean;
+  benchmark_return: number | null;
+  hit_rate: number | null;
+  picks: NewsPickItem[];
 }
 
-export interface NewsHistoryDay {
-  date: string;
-  items: TopNewsItem[];
+export interface NewsPickPerformance {
+  window_days: number;
+  n_picks: number;
+  n_graded: number;
+  n_days: number;
+  hit_rate: number | null;
+  mean_actual_return: number | null;
+  mean_benchmark_return: number | null;
+  mean_excess_return: number | null;
 }
 
-export interface NewsHistoryResponse {
-  days: NewsHistoryDay[];
-}
-
-export interface NewsStats {
-  total_classified: number;
-  graded: number;
-  accuracy_pct: number | null;
+export interface NewsPickHistory {
+  performance: NewsPickPerformance;
+  runs: NewsPickRun[];
 }
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T | null> {
@@ -233,7 +251,7 @@ export const api = {
   performanceSummary: (window: "7d" | "30d" | "all" = "7d") =>
     getJson<PerformanceSummary>(`${SERVER_API_BASE}/api/v1/performance/summary?window=${window}`),
   modelVersions: () => getJson<ModelVersionListResponse>(`${SERVER_API_BASE}/api/v1/model/versions`),
-  topNews: (limit = 20) => getJson<TopNewsResponse>(`${SERVER_API_BASE}/api/v1/news/top?limit=${limit}`),
-  newsHistory: (days = 7) => getJson<NewsHistoryResponse>(`${SERVER_API_BASE}/api/v1/news/history?days=${days}`),
-  newsStats: (days = 7) => getJson<NewsStats>(`${SERVER_API_BASE}/api/v1/news/stats?days=${days}`),
+  newsPicksLatest: () => getJson<NewsPickRun>(`${SERVER_API_BASE}/api/v1/news-picks/latest`),
+  newsPicksHistory: (limit = 7) =>
+    getJson<NewsPickHistory>(`${SERVER_API_BASE}/api/v1/news-picks/history?limit=${limit}`),
 };

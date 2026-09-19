@@ -16,6 +16,7 @@ EXPECTED_JOB_IDS = {
     "filings_ingestion",
     "feature_generation",
     "prediction_generation",
+    "news_pick_generation",
     "historical_dataset_construction",
     "weekly_training",
     "challenger_experiment",
@@ -50,3 +51,25 @@ def test_scheduled_jobs_run_before_the_09_30_market_open():
 def test_scheduler_uses_eastern_time():
     scheduler = build_scheduler()
     assert str(scheduler.timezone) == ET
+
+
+def test_morning_lock_jobs_only_fire_on_weekdays():
+    # A Saturday/Sunday run would lock a pick set for a day the market isn't
+    # open — nothing could ever evaluate it.
+    scheduler = build_scheduler()
+    jobs = {job.id: job for job in scheduler.get_jobs()}
+
+    for job_id in ("feature_generation", "prediction_generation", "news_pick_generation"):
+        day_of_week = str(jobs[job_id].trigger.fields[4])
+        assert day_of_week == "mon-fri", f"{job_id} runs on {day_of_week}"
+
+
+def test_news_picks_lock_on_the_same_minute_as_the_ranking_prediction():
+    scheduler = build_scheduler()
+    jobs = {job.id: job for job in scheduler.get_jobs()}
+
+    def hhmm(job_id):
+        fields = jobs[job_id].trigger.fields
+        return (fields[5].expressions[0].first, fields[6].expressions[0].first)
+
+    assert hhmm("news_pick_generation") == hhmm("prediction_generation") == (9, 15)

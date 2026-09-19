@@ -1,5 +1,5 @@
-// Matches the backend's _NEUTRAL_SENTIMENT_THRESHOLD (app/services/news_service.py).
-export const NEUTRAL_SENTIMENT_THRESHOLD = 0.15;
+// A headline within this band of zero reads as neutral, not positive/negative.
+const NEUTRAL_SENTIMENT_THRESHOLD = 0.15;
 
 // Neutral labels by design — "Bullish/Bearish" reads as a directional trading
 // call, which this isn't. This describes the tone of a single headline, not

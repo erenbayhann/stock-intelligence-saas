@@ -31,6 +31,7 @@ from app.jobs import (
     check_champion_performance,
     evaluate_results,
     generate_features,
+    generate_news_picks,
     generate_predictions,
     ingest_filings,
     ingest_fundamentals,
@@ -101,15 +102,26 @@ def build_scheduler() -> BlockingScheduler:
     )
 
     # -- Feature freeze -> inference -> prediction lock (before 09:30 open) --
+    # Mon-Fri only: these lock a snapshot for "today's" session, so firing on
+    # a Saturday/Sunday would write a never-evaluable pick set for a day the
+    # market isn't open. (Holidays still slip through — no holiday calendar
+    # is kept — and simply stay pending.)
     scheduler.add_job(
-        _run, CronTrigger(hour=9, minute=5, timezone=ET),
+        _run, CronTrigger(day_of_week="mon-fri", hour=9, minute=5, timezone=ET),
         args=["feature_generation", generate_features.main],
         id="feature_generation", misfire_grace_time=300,
     )
     scheduler.add_job(
-        _run, CronTrigger(hour=9, minute=15, timezone=ET),
+        _run, CronTrigger(day_of_week="mon-fri", hour=9, minute=15, timezone=ET),
         args=["prediction_generation", generate_predictions.main],
         id="prediction_generation", misfire_grace_time=300,
+    )
+    # News picks lock on the ranking model's exact cycle, same minute, from
+    # only what was already classified by then.
+    scheduler.add_job(
+        _run, CronTrigger(day_of_week="mon-fri", hour=9, minute=15, timezone=ET),
+        args=["news_pick_generation", generate_news_picks.main],
+        id="news_pick_generation", misfire_grace_time=300,
     )
 
     # -- Weekly retrain, Sunday when markets are closed and nothing else --

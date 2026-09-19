@@ -9,6 +9,7 @@ from app.models.macro import MacroData
 from app.models.market_price import MarketPrice
 from app.models.model_version import ModelVersion
 from app.models.news import NewsArticle, NewsCompanyLink
+from app.models.news_pick import NewsPick, NewsPickResult, NewsPickRun
 from app.models.prediction import (
     Prediction,
     PredictionNewsLink,
@@ -23,6 +24,9 @@ __all__ = [
     "Security",
     "NewsArticle",
     "NewsCompanyLink",
+    "NewsPickRun",
+    "NewsPick",
+    "NewsPickResult",
     "MarketPrice",
     "Fundamentals",
     "Filing",

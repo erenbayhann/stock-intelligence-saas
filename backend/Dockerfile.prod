@@ -20,4 +20,7 @@ RUN pip install --upgrade pip && pip install -e .
 
 # Shell form (not exec-form array) so $PORT actually expands — Railway
 # assigns its own port per deploy and expects the app to bind to it.
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Migrations run on every API start (idempotent, a no-op when already at head) so a
+# deploy that ships a new migration can never leave the API running against an
+# older schema. Only this service uses this CMD; the scheduler overrides it.
+CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

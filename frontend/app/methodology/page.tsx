@@ -210,6 +210,31 @@ export default function MethodologyPage() {
         </p>
       </Card>
 
+      <Card
+        title="News picks"
+        badge={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#12E28A" strokeWidth="2"><path d="M4 5h16M4 10h16M4 15h10M4 20h7" /></svg>
+        }
+      >
+        <p>
+          The News page is a second, independent daily list. At ~09:15 ET each trading day &mdash; the same
+          moment the AI ranking locks &mdash; it takes every headline that was published <em>and</em> already
+          classified since the previous close, scores each S&amp;P 100 stock by adding up sentiment &times;
+          importance &times; relevance across its headlines, and locks the five with the highest net-positive
+          score. If fewer than five stocks are net-positive that morning, the list is honestly shorter.
+        </p>
+        <p>
+          Once locked, a day&rsquo;s picks are never edited. After the close each pick is graded against the
+          S&amp;P 500 &mdash; it &ldquo;beat the market&rdquo; if it outperformed it that session, the same
+          yardstick as the main ranking &mdash; and both real returns are shown.
+        </p>
+        <p className="text-xs text-ink-soft">
+          Headlines are read and scored by an AI model, so a sentiment call can be wrong. A day marked
+          &ldquo;Reconstructed&rdquo; was written after its lock time, using only headlines that had already been
+          classified before that lock.
+        </p>
+      </Card>
+
       <div className="flex items-center gap-2.5 rounded-xl border border-panel-border bg-[#0c0d0e] px-5 py-3.5 mt-8 text-xs text-ink-soft">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9195A0" strokeWidth="2" className="flex-none">
           <circle cx="12" cy="12" r="9" />
